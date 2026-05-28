@@ -37,6 +37,8 @@ func (h *Handler) Router(staticDir string) http.Handler {
 	rateLimit := h.rateLimitMiddleware(authLimiter)
 
 	r := mux.NewRouter()
+	r.Use(h.requestLogger)
+
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(h.securityHeaders)
 

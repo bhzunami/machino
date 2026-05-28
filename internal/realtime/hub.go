@@ -49,7 +49,11 @@ func (h *Hub) Serve(w http.ResponseWriter, r *http.Request, projectID string) {
 		return
 	}
 	h.add(projectID, conn)
-	defer h.remove(projectID, conn)
+	h.logger.Info("websocket connected", "project_id", projectID, "remote_addr", conn.RemoteAddr())
+	defer func() {
+		h.remove(projectID, conn)
+		h.logger.Info("websocket disconnected", "project_id", projectID, "remote_addr", conn.RemoteAddr())
+	}()
 	conn.SetReadLimit(512)
 	_ = conn.SetReadDeadline(time.Now().Add(70 * time.Second))
 	conn.SetPongHandler(func(string) error {

@@ -237,7 +237,7 @@
     gap: 0;
     overflow: auto;
     border-right: 1px solid var(--border);
-    background: rgba(8,8,15,0.7);
+    background: var(--sidebar-bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     z-index: 10;
@@ -252,6 +252,7 @@
   }
 
   .brand { padding: 4px 4px 2px; }
+  .sidebar-title { padding: 2px 10px 2px 4px; }
 
   .brand-mark { display: flex; gap: 7px; align-items: center; }
 

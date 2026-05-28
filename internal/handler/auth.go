@@ -55,6 +55,7 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		h.handleStoreError(w, err)
 		return
 	}
+	h.logger.Info("user registered", "email", req.Email, "ip", clientIP(r))
 	if !h.createSessionCookie(w, r, user.ID) {
 		return
 	}
@@ -71,21 +72,24 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	}
 	user, hash, err := h.store.UserByEmail(r.Context(), req.Email)
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)) != nil {
+		h.logger.Warn("login failed", "email", req.Email, "ip", clientIP(r))
 		respondError(w, http.StatusUnauthorized, "E-Mail oder Passwort ist falsch.")
 		return
 	}
+	h.logger.Info("login success", "email", req.Email, "user_id", user.ID, "ip", clientIP(r))
 	if !h.createSessionCookie(w, r, user.ID) {
 		return
 	}
 	respond(w, http.StatusOK, map[string]any{"user": user})
 }
 
-func (h *Handler) logout(w http.ResponseWriter, r *http.Request, _ model.User) {
+func (h *Handler) logout(w http.ResponseWriter, r *http.Request, user model.User) {
 	if cookie, err := r.Cookie(cookieName); err == nil {
 		if err := h.store.DeleteSession(r.Context(), cookie.Value); err != nil {
 			h.logger.Warn("delete session", "error", err)
 		}
 	}
+	h.logger.Info("logout", "user_id", user.ID, "ip", clientIP(r))
 	http.SetCookie(w, h.sessionCookie(r, "", time.Now().Add(-time.Hour)))
 	respond(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -141,6 +145,7 @@ func (h *Handler) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
 		h.handleStoreError(w, err)
 		return
 	}
+	h.logger.Info("password reset requested", "email", req.Email, "ip", clientIP(r))
 	if h.mailer.Enabled() {
 		if err := h.mailer.SendPasswordReset(req.Email, token); err != nil {
 			h.logger.Error("send password reset mail", "error", err)

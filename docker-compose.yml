@@ -19,6 +19,9 @@ services:
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM=${SMTP_FROM:-}
+      # Logging (json empfohlen für Log-Aggregatoren)
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
     labels:
       - "traefik.enable=true"
       # Hostname anpassen: z.B. machino.example.com
@@ -36,6 +39,12 @@ services:
     volumes:
       - machino_data:/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     networks:
       - traefik-public
 
@@ -44,5 +53,6 @@ volumes:
 
 networks:
   # Muss mit dem Traefik-Netzwerk übereinstimmen
+  # Erstellen mit: docker network create traefik-public
   traefik-public:
     external: true

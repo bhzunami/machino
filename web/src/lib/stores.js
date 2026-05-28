@@ -9,6 +9,26 @@ export const currentView = writable('todos')
 export const error = writable('')
 export const success = writable('')
 
+// Theme store — persisted in localStorage, applied to <html data-theme>
+function createThemeStore() {
+  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('machino-theme') : null
+  const initial = stored || 'dark'
+  if (typeof document !== 'undefined') document.documentElement.dataset.theme = initial
+  const { subscribe, update } = writable(initial)
+  return {
+    subscribe,
+    toggle() {
+      update(current => {
+        const next = current === 'dark' ? 'light' : 'dark'
+        if (typeof localStorage !== 'undefined') localStorage.setItem('machino-theme', next)
+        if (typeof document !== 'undefined') document.documentElement.dataset.theme = next
+        return next
+      })
+    },
+  }
+}
+export const theme = createThemeStore()
+
 export const selectedProject = derived(
   [projects, selectedProjectId],
   ([$p, $id]) => $p.find((p) => p.id === $id) ?? null,

@@ -6,6 +6,7 @@
     user,
     avatarInitial,
     openTodoCount,
+    theme,
   } from '../lib/stores.js'
 
   const dispatch = createEventDispatcher()
@@ -46,6 +47,14 @@
   </div>
   <div class="actions">
     <span>{$currentView === 'profile' ? $user.email : `${$openTodoCount} offen`}</span>
+    <button
+      class="theme-btn"
+      on:click={theme.toggle}
+      aria-label="Farbschema wechseln"
+      title={$theme === 'dark' ? 'Light Mode aktivieren' : 'Dark Mode aktivieren'}
+    >
+      {$theme === 'dark' ? '☀' : '🌙'}
+    </button>
     <div class="profile-menu">
       <button class="avatar" bind:this={avatarEl} aria-label="Profilmenü" on:click|stopPropagation={toggleMenu}>
         {$avatarInitial}
@@ -192,6 +201,26 @@
     white-space: nowrap;
   }
 
+  .theme-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: var(--glass-md);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 1rem;
+    display: grid;
+    place-items: center;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+    flex-shrink: 0;
+  }
+  .theme-btn:hover {
+    background: var(--glass-hover);
+    border-color: var(--border-hover);
+    color: var(--text);
+    transform: scale(1.1);
+  }
+
   .profile-menu { position: relative; }
 
   .avatar {
@@ -221,7 +250,7 @@
     background: var(--bg-2);
     border: 1px solid var(--border-hover);
     border-radius: 14px;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.04);
+    box-shadow: 0 24px 64px var(--shadow-dropdown), 0 0 0 1px rgba(255,255,255,0.04);
     backdrop-filter: blur(24px);
     animation: drop-in 0.13s cubic-bezier(0.16,1,0.3,1);
     z-index: 9999;
