@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+.vscode
+bin/
+tmp/
+*.db
+*.db-shm
+*.db-wal
+*.test
+*.out
+coverage.out
+coverage.html
+web/node_modules/
+web/dist/
+README.md
