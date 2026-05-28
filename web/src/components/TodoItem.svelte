@@ -219,6 +219,23 @@
     color: #a5b4fc;
   }
 
+  /* Light mode chip overrides */
+  :global([data-theme="light"]) .meta-chip.date-chip {
+    background: rgba(14,165,233,0.1);
+    border-color: rgba(14,165,233,0.3);
+    color: #0369a1;
+  }
+  :global([data-theme="light"]) .meta-chip.prio-high {
+    background: rgba(220,38,38,0.08);
+    border-color: rgba(220,38,38,0.25);
+    color: #b91c1c;
+  }
+  :global([data-theme="light"]) .meta-chip.prio-low {
+    background: rgba(99,102,241,0.1);
+    border-color: rgba(99,102,241,0.3);
+    color: #4338ca;
+  }
+
   /* Expanded detail */
   .todo-detail {
     display: grid;
@@ -229,6 +246,10 @@
     border: 1px solid var(--border);
     animation: expand-in 0.18s cubic-bezier(0.16,1,0.3,1);
     margin-top: 2px;
+  }
+
+  :global([data-theme="light"]) .todo-detail {
+    background: rgba(99,102,241,0.05);
   }
 
   @keyframes expand-in {
@@ -282,10 +303,19 @@
     color-scheme: dark;
   }
 
+  :global([data-theme="light"]) .date-picker-wrap input[type='date'] {
+    color-scheme: light;
+  }
+
   .date-picker-wrap input[type='date']::-webkit-calendar-picker-indicator {
     opacity: 0.5;
     cursor: pointer;
     filter: invert(1);
+  }
+
+  :global([data-theme="light"]) .date-picker-wrap input[type='date']::-webkit-calendar-picker-indicator {
+    filter: none;
+    opacity: 0.6;
   }
 
   .date-clear {
