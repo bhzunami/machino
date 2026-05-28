@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -16,7 +18,8 @@ SELECT p.id, p.title, p.description, p.color,
        p.created_at, p.updated_at
 FROM projects p
 LEFT JOIN project_favorites pf ON pf.project_id = p.id AND pf.user_id = ?
-ORDER BY CASE WHEN pf.user_id IS NULL THEN 1 ELSE 0 END, p.updated_at DESC`, userID)
+WHERE p.created_by = ?
+ORDER BY CASE WHEN pf.user_id IS NULL THEN 1 ELSE 0 END, p.updated_at DESC`, userID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
@@ -33,6 +36,21 @@ ORDER BY CASE WHEN pf.user_id IS NULL THEN 1 ELSE 0 END, p.updated_at DESC`, use
 		return nil, fmt.Errorf("iterate projects: %w", err)
 	}
 	return projects, nil
+}
+
+// GetProject returns a project owned by the given user, or ErrNotFound if it doesn't exist or belong to them.
+func (s *Store) GetProject(ctx context.Context, userID, projectID string) (model.Project, error) {
+	var p model.Project
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, title, description, color, created_at, updated_at FROM projects WHERE id = ? AND created_by = ?`,
+		projectID, userID)
+	if err := row.Scan(&p.ID, &p.Title, &p.Description, &p.Color, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.Project{}, ErrNotFound
+		}
+		return model.Project{}, fmt.Errorf("get project: %w", err)
+	}
+	return p, nil
 }
 
 func (s *Store) CreateProject(ctx context.Context, userID, title, description, color string) (model.Project, error) {
@@ -106,6 +124,10 @@ func (s *Store) DeleteProject(ctx context.Context, userID, projectID string) err
 }
 
 func (s *Store) SetFavorite(ctx context.Context, userID, projectID string, favorite bool) error {
+	// Verify the project belongs to this user before modifying their favorites.
+	if _, err := s.GetProject(ctx, userID, projectID); err != nil {
+		return err
+	}
 	if favorite {
 		_, err := s.db.ExecContext(ctx,
 			`INSERT OR IGNORE INTO project_favorites (user_id, project_id) VALUES (?, ?)`,
@@ -122,3 +144,4 @@ func (s *Store) SetFavorite(ctx context.Context, userID, projectID string, favor
 	}
 	return nil
 }
+

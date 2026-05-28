@@ -9,9 +9,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func (h *Handler) listTodos(w http.ResponseWriter, r *http.Request, _ model.User) {
+func (h *Handler) listTodos(w http.ResponseWriter, r *http.Request, user model.User) {
 	projectID := mux.Vars(r)["projectID"]
-	todos, err := h.store.ListTodos(r.Context(), projectID)
+	todos, err := h.store.ListTodos(r.Context(), user.ID, projectID)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return
@@ -43,7 +43,7 @@ func (h *Handler) createTodo(w http.ResponseWriter, r *http.Request, user model.
 	respond(w, http.StatusCreated, map[string]any{"todo": todo})
 }
 
-func (h *Handler) updateTodo(w http.ResponseWriter, r *http.Request, _ model.User) {
+func (h *Handler) updateTodo(w http.ResponseWriter, r *http.Request, user model.User) {
 	var req struct {
 		Completed   *bool   `json:"completed"`
 		Title       *string `json:"title"`
@@ -62,7 +62,7 @@ func (h *Handler) updateTodo(w http.ResponseWriter, r *http.Request, _ model.Use
 		}
 		duePtr = &due
 	}
-	todo, err := h.store.UpdateTodo(r.Context(), mux.Vars(r)["todoID"], req.Completed, req.Title, req.Description, req.Priority, duePtr)
+	todo, err := h.store.UpdateTodo(r.Context(), user.ID, mux.Vars(r)["todoID"], req.Completed, req.Title, req.Description, req.Priority, duePtr)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return
@@ -71,9 +71,9 @@ func (h *Handler) updateTodo(w http.ResponseWriter, r *http.Request, _ model.Use
 	respond(w, http.StatusOK, map[string]any{"todo": todo})
 }
 
-func (h *Handler) deleteCompletedTodos(w http.ResponseWriter, r *http.Request, _ model.User) {
+func (h *Handler) deleteCompletedTodos(w http.ResponseWriter, r *http.Request, user model.User) {
 	projectID := mux.Vars(r)["projectID"]
-	if err := h.store.DeleteCompletedTodos(r.Context(), projectID); err != nil {
+	if err := h.store.DeleteCompletedTodos(r.Context(), user.ID, projectID); err != nil {
 		h.handleStoreError(w, err)
 		return
 	}
@@ -81,7 +81,7 @@ func (h *Handler) deleteCompletedTodos(w http.ResponseWriter, r *http.Request, _
 	respond(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (h *Handler) reorderTodos(w http.ResponseWriter, r *http.Request, _ model.User) {
+func (h *Handler) reorderTodos(w http.ResponseWriter, r *http.Request, user model.User) {
 	var req struct {
 		IDs []string `json:"ids"`
 	}
@@ -89,7 +89,7 @@ func (h *Handler) reorderTodos(w http.ResponseWriter, r *http.Request, _ model.U
 		return
 	}
 	projectID := mux.Vars(r)["projectID"]
-	if err := h.store.ReorderTodos(r.Context(), projectID, req.IDs); err != nil {
+	if err := h.store.ReorderTodos(r.Context(), user.ID, projectID, req.IDs); err != nil {
 		h.handleStoreError(w, err)
 		return
 	}
@@ -97,6 +97,12 @@ func (h *Handler) reorderTodos(w http.ResponseWriter, r *http.Request, _ model.U
 	respond(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (h *Handler) projectWS(w http.ResponseWriter, r *http.Request, _ model.User) {
-	h.hub.Serve(w, r, mux.Vars(r)["projectID"])
+func (h *Handler) projectWS(w http.ResponseWriter, r *http.Request, user model.User) {
+	projectID := mux.Vars(r)["projectID"]
+	// Verify the user owns this project before allowing WebSocket access.
+	if _, err := h.store.GetProject(r.Context(), user.ID, projectID); err != nil {
+		h.handleStoreError(w, err)
+		return
+	}
+	h.hub.Serve(w, r, projectID)
 }

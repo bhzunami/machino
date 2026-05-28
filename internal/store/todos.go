@@ -11,10 +11,12 @@ import (
 	"machino/internal/model"
 )
 
-func (s *Store) ListTodos(ctx context.Context, projectID string) ([]model.Todo, error) {
+func (s *Store) ListTodos(ctx context.Context, userID, projectID string) ([]model.Todo, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, project_id, title, description, due_date, priority, completed, position, created_at, updated_at
-FROM todos WHERE project_id = ? ORDER BY position ASC, created_at ASC`, projectID)
+FROM todos
+WHERE project_id = ? AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND created_by = ?)
+ORDER BY position ASC, created_at ASC`, projectID, projectID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list todos: %w", err)
 	}
@@ -73,9 +75,15 @@ func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, descri
 		id, projectID, title, strings.TrimSpace(description), due, priority, position, userID, now, now); err != nil {
 		return model.Todo{}, fmt.Errorf("insert todo: %w", err)
 	}
-	if _, err = tx.ExecContext(ctx,
-		`UPDATE projects SET updated_at = ? WHERE id = ?`, now, projectID); err != nil {
+	// Verify project ownership: touch only if created_by matches.
+	res, err := tx.ExecContext(ctx,
+		`UPDATE projects SET updated_at = ? WHERE id = ? AND created_by = ?`, now, projectID, userID)
+	if err != nil {
 		return model.Todo{}, fmt.Errorf("touch project: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		err = ErrNotFound
+		return model.Todo{}, err
 	}
 	if err = tx.Commit(); err != nil {
 		return model.Todo{}, fmt.Errorf("commit create todo tx: %w", err)
@@ -93,7 +101,7 @@ func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, descri
 	}, nil
 }
 
-func (s *Store) UpdateTodo(ctx context.Context, todoID string, completed *bool, title, description, priority *string, dueDate **time.Time) (model.Todo, error) {
+func (s *Store) UpdateTodo(ctx context.Context, userID, todoID string, completed *bool, title, description, priority *string, dueDate **time.Time) (model.Todo, error) {
 	current, err := s.todoByID(ctx, todoID)
 	if err != nil {
 		return model.Todo{}, err
@@ -122,9 +130,11 @@ func (s *Store) UpdateTodo(ctx context.Context, todoID string, completed *bool, 
 	if current.DueDate != nil {
 		due = current.DueDate.UTC()
 	}
+	// Include project ownership check in the UPDATE to prevent IDOR.
 	result, err := s.db.ExecContext(ctx,
-		`UPDATE todos SET title = ?, description = ?, due_date = ?, priority = ?, completed = ?, updated_at = ? WHERE id = ?`,
-		current.Title, current.Description, due, current.Priority, boolToInt(current.Completed), now, todoID)
+		`UPDATE todos SET title = ?, description = ?, due_date = ?, priority = ?, completed = ?, updated_at = ?
+		 WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE created_by = ?)`,
+		current.Title, current.Description, due, current.Priority, boolToInt(current.Completed), now, todoID, userID)
 	if err != nil {
 		return model.Todo{}, fmt.Errorf("update todo: %w", err)
 	}
@@ -135,19 +145,21 @@ func (s *Store) UpdateTodo(ctx context.Context, todoID string, completed *bool, 
 	return current, nil
 }
 
-func (s *Store) DeleteCompletedTodos(ctx context.Context, projectID string) error {
+func (s *Store) DeleteCompletedTodos(ctx context.Context, userID, projectID string) error {
 	if projectID == "" {
 		return ErrInvalidInput
 	}
 	_, err := s.db.ExecContext(ctx,
-		`DELETE FROM todos WHERE project_id = ? AND completed = 1`, projectID)
+		`DELETE FROM todos WHERE project_id = ? AND completed = 1
+		 AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND created_by = ?)`,
+		projectID, projectID, userID)
 	if err != nil {
 		return fmt.Errorf("delete completed todos: %w", err)
 	}
 	return nil
 }
 
-func (s *Store) ReorderTodos(ctx context.Context, projectID string, ids []string) error {
+func (s *Store) ReorderTodos(ctx context.Context, userID, projectID string, ids []string) error {
 	if projectID == "" || len(ids) == 0 {
 		return ErrInvalidInput
 	}
@@ -160,6 +172,16 @@ func (s *Store) ReorderTodos(ctx context.Context, projectID string, ids []string
 			_ = tx.Rollback()
 		}
 	}()
+	// Verify project ownership before reordering.
+	var ownerCount int
+	if err = tx.QueryRowContext(ctx,
+		`SELECT COUNT(1) FROM projects WHERE id = ? AND created_by = ?`, projectID, userID).Scan(&ownerCount); err != nil {
+		return fmt.Errorf("check project ownership: %w", err)
+	}
+	if ownerCount == 0 {
+		err = ErrNotFound
+		return err
+	}
 	for i, id := range ids {
 		result, execErr := tx.ExecContext(ctx,
 			`UPDATE todos SET position = ?, updated_at = ? WHERE id = ? AND project_id = ?`,
@@ -174,7 +196,7 @@ func (s *Store) ReorderTodos(ctx context.Context, projectID string, ids []string
 		}
 	}
 	if _, err = tx.ExecContext(ctx,
-		`UPDATE projects SET updated_at = ? WHERE id = ?`, time.Now().UTC(), projectID); err != nil {
+		`UPDATE projects SET updated_at = ? WHERE id = ? AND created_by = ?`, time.Now().UTC(), projectID, userID); err != nil {
 		return fmt.Errorf("touch reordered project: %w", err)
 	}
 	if err = tx.Commit(); err != nil {

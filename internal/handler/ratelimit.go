@@ -27,6 +27,7 @@ type ipRateLimiter struct {
 	entries map[string]*ipEntry
 	r       rate.Limit
 	burst   int
+	stopCh  chan struct{}
 }
 
 func newIPRateLimiter(r rate.Limit, burst int) *ipRateLimiter {
@@ -34,9 +35,14 @@ func newIPRateLimiter(r rate.Limit, burst int) *ipRateLimiter {
 		entries: make(map[string]*ipEntry),
 		r:       r,
 		burst:   burst,
+		stopCh:  make(chan struct{}),
 	}
 	go l.cleanup()
 	return l
+}
+
+func (l *ipRateLimiter) stop() {
+	close(l.stopCh)
 }
 
 func (l *ipRateLimiter) get(ip string) *rate.Limiter {
@@ -54,14 +60,19 @@ func (l *ipRateLimiter) get(ip string) *rate.Limiter {
 func (l *ipRateLimiter) cleanup() {
 	ticker := time.NewTicker(cleanupInterval)
 	defer ticker.Stop()
-	for range ticker.C {
-		l.mu.Lock()
-		for ip, e := range l.entries {
-			if time.Since(e.lastSeen) > entryTTL {
-				delete(l.entries, ip)
+	for {
+		select {
+		case <-ticker.C:
+			l.mu.Lock()
+			for ip, e := range l.entries {
+				if time.Since(e.lastSeen) > entryTTL {
+					delete(l.entries, ip)
+				}
 			}
+			l.mu.Unlock()
+		case <-l.stopCh:
+			return
 		}
-		l.mu.Unlock()
 	}
 }
 
@@ -84,13 +95,17 @@ func (h *Handler) rateLimitMiddleware(limiter *ipRateLimiter) func(http.Handler)
 // Note: Only trust X-Forwarded-For if running behind a known reverse proxy.
 func clientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// Take the first IP in the chain — the original client
-		if ip := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0]); ip != "" {
-			return ip
+		// Take the first IP in the chain — the original client.
+		candidate := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+		if net.ParseIP(candidate) != nil {
+			return candidate
 		}
 	}
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
+		candidate := strings.TrimSpace(xri)
+		if net.ParseIP(candidate) != nil {
+			return candidate
+		}
 	}
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

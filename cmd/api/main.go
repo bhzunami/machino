@@ -75,10 +75,10 @@ func main() {
 		logger.Info("secure cookies enabled — HSTS will be sent")
 	}
 
-	router := handler.New(s, hub, m, logger).
+	h := handler.New(s, hub, m, logger).
 		WithRegistration(registrationEnabled).
-		WithCookieSecure(cookieSecure).
-		Router(staticDir)
+		WithCookieSecure(cookieSecure)
+	router := h.Router(staticDir)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           router,
@@ -102,6 +102,7 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("shutdown api", "error", err)
 	}
+	h.Shutdown()
 }
 
 func env(key, fallback string) string {

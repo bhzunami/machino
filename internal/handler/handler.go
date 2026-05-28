@@ -17,12 +17,13 @@ import (
 const cookieName = "machino_session"
 
 type Handler struct {
-	store                *store.Store
-	hub                  *realtime.Hub
-	mailer               *mailer.Mailer
-	logger               *slog.Logger
-	registrationEnabled  bool
-	cookieSecure         bool
+	store               *store.Store
+	hub                 *realtime.Hub
+	mailer              *mailer.Mailer
+	logger              *slog.Logger
+	registrationEnabled bool
+	cookieSecure        bool
+	authLimiter         *ipRateLimiter
 }
 
 func New(s *store.Store, hub *realtime.Hub, m *mailer.Mailer, logger *slog.Logger) *Handler {
@@ -33,8 +34,8 @@ func (h *Handler) WithRegistration(enabled bool) *Handler { h.registrationEnable
 func (h *Handler) WithCookieSecure(secure bool) *Handler  { h.cookieSecure = secure; return h }
 
 func (h *Handler) Router(staticDir string) http.Handler {
-	authLimiter := newIPRateLimiter(authRatePerSecond, authBurst)
-	rateLimit := h.rateLimitMiddleware(authLimiter)
+	h.authLimiter = newIPRateLimiter(authRatePerSecond, authBurst)
+	rateLimit := h.rateLimitMiddleware(h.authLimiter)
 
 	r := mux.NewRouter()
 	r.Use(h.requestLogger)
@@ -108,6 +109,12 @@ func (h *Handler) securityHeaders(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (h *Handler) Shutdown() {
+	if h.authLimiter != nil {
+		h.authLimiter.stop()
+	}
 }
 
 func (h *Handler) health(w http.ResponseWriter, _ *http.Request) {
