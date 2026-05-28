@@ -28,11 +28,11 @@
   <div class="actions">
     <span>{$currentView === 'profile' ? $user.email : `${$openTodoCount} offen`}</span>
     <div class="profile-menu">
-      <button class="avatar" aria-label="Profilmenü" on:click={() => dispatch('toggle-menu')}>
+      <button class="avatar" aria-label="Profilmenü" on:click|stopPropagation={() => dispatch('toggle-menu')}>
         {$avatarInitial}
       </button>
       {#if menuOpen}
-        <div class="dropdown card">
+        <div class="dropdown card" on:click|stopPropagation role="menu" aria-label="Profilmenü">
           <button on:click={() => dispatch('open-todos')}>Todos</button>
           <button on:click={() => dispatch('open-profile')}>Profil</button>
           <button on:click={() => dispatch('logout')}>Logout</button>
