@@ -53,6 +53,15 @@
     padding: 20px 24px;
     background: var(--glass);
     border-color: var(--border);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 600px) {
+    .profile-page {
+      padding: 14px 12px;
+      border-radius: 14px;
+    }
   }
 
   h2 {
