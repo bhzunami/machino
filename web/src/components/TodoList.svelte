@@ -268,7 +268,14 @@
     gap: 8px;
     flex-wrap: wrap;
   }
-  .todo.done .todo-text { flex: 1; min-width: 0; }
+  .todo.done .todo-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.92rem;
+  }
   .todo.done .todo-title {
     text-decoration: line-through;
     color: var(--text-faint);
