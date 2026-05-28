@@ -240,13 +240,43 @@
   /* Done-state overrides for inline completed todos */
   .todo.done {
     opacity: 0.5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 14px;
   }
+  .todo.done .check {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color), transparent 55%);
+    color: #fff;
+    font-size: 0.7rem;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .todo.done .check:hover { transform: scale(1.1); }
+  .todo.done > div { flex: 1; min-width: 0; }
+  .todo.done .todo-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .todo.done .todo-text { flex: 1; min-width: 0; }
   .todo.done .todo-title {
     text-decoration: line-through;
     color: var(--text-faint);
+    font-size: 0.92rem;
   }
-  .todo.done .check {
-    background: color-mix(in srgb, var(--accent-color), transparent 55%);
-    border-color: var(--accent-color);
+  .todo.done .todo-chips {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
   }
 </style>
