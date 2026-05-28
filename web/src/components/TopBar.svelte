@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher } from 'svelte'
+  import { createEventDispatcher, tick } from 'svelte'
   import {
     selectedProject,
     currentView,
@@ -11,6 +11,17 @@
   const dispatch = createEventDispatcher()
 
   export let menuOpen = false
+
+  let avatarEl
+  let dropdownPos = { top: 0, right: 0 }
+
+  async function toggleMenu() {
+    if (!menuOpen) {
+      const rect = avatarEl.getBoundingClientRect()
+      dropdownPos = { top: rect.bottom + 8, right: window.innerWidth - rect.right }
+    }
+    dispatch('toggle-menu')
+  }
 </script>
 
 <header class="topbar card">
@@ -28,19 +39,27 @@
   <div class="actions">
     <span>{$currentView === 'profile' ? $user.email : `${$openTodoCount} offen`}</span>
     <div class="profile-menu">
-      <button class="avatar" aria-label="Profilmenü" on:click|stopPropagation={() => dispatch('toggle-menu')}>
+      <button class="avatar" bind:this={avatarEl} aria-label="Profilmenü" on:click|stopPropagation={toggleMenu}>
         {$avatarInitial}
       </button>
-      {#if menuOpen}
-        <div class="dropdown card" on:click|stopPropagation role="menu" aria-label="Profilmenü">
-          <button on:click={() => dispatch('open-todos')}>Todos</button>
-          <button on:click={() => dispatch('open-profile')}>Profil</button>
-          <button on:click={() => dispatch('logout')}>Logout</button>
-        </div>
-      {/if}
     </div>
   </div>
 </header>
+
+{#if menuOpen}
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div
+    class="dropdown-portal"
+    style="top:{dropdownPos.top}px;right:{dropdownPos.right}px"
+    on:click|stopPropagation
+    role="menu"
+    aria-label="Profilmenü"
+  >
+    <button on:click={() => dispatch('open-todos')}>Todos</button>
+    <button on:click={() => dispatch('open-profile')}>Profil</button>
+    <button on:click={() => dispatch('logout')}>Logout</button>
+  </div>
+{/if}
 
 <style>
   .topbar {
@@ -147,20 +166,19 @@
     transform: scale(1.06);
   }
 
-  .dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
+  .dropdown-portal {
+    position: fixed;
     min-width: 164px;
     padding: 5px;
     display: grid;
     gap: 2px;
     background: var(--bg-2);
-    border-color: var(--border-hover);
-    box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+    border: 1px solid var(--border-hover);
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.04);
     backdrop-filter: blur(24px);
     animation: drop-in 0.13s cubic-bezier(0.16,1,0.3,1);
-    z-index: 100;
+    z-index: 9999;
   }
 
   @keyframes drop-in {
@@ -168,7 +186,7 @@
     to   { opacity: 1; transform: translateY(0)  scale(1); }
   }
 
-  .dropdown button {
+  .dropdown-portal button {
     text-align: left;
     padding: 9px 12px;
     border-radius: 10px;
@@ -178,7 +196,7 @@
     font-weight: 600;
     transition: background 0.12s;
   }
-  .dropdown button:hover { background: var(--glass-hover); }
-  .dropdown button:last-child { color: #f87171; }
-  .dropdown button:last-child:hover { background: rgba(248,113,113,0.12); }
+  .dropdown-portal button:hover { background: var(--glass-hover); }
+  .dropdown-portal button:last-child { color: #f87171; }
+  .dropdown-portal button:last-child:hover { background: rgba(248,113,113,0.12); }
 </style>
