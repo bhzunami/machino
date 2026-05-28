@@ -63,23 +63,38 @@
   .quick-add {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    padding: 10px 14px;
-    border-color: rgba(226, 232, 240, 0.9);
-    background: #fff;
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--accent-color), transparent 92%),
-      0 8px 24px rgba(15, 23, 42, 0.06);
+    gap: 10px;
+    padding: 10px 10px 10px 16px;
+    background: var(--glass);
+    border-color: var(--border);
+    backdrop-filter: blur(24px);
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
 
-  .quick-add :global(input:focus) {
-    border-color: var(--accent-color);
-    outline: 3px solid color-mix(in srgb, var(--accent-color), transparent 82%);
+  .quick-add:focus-within {
+    border-color: color-mix(in srgb, var(--accent-color), transparent 52%);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color), transparent 72%),
+                0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .quick-add input {
+    border: none;
+    background: transparent;
+    padding: 6px 4px;
+    font-size: 0.95rem;
+    color: var(--text);
+    border-radius: 0;
+    box-shadow: none !important;
+  }
+
+  .quick-add input::placeholder { color: var(--text-faint); }
+
+  .quick-add .btn {
+    padding: 8px 16px;
+    font-size: 0.84rem;
   }
 
   @media (max-width: 900px) {
-    .quick-add {
-      grid-template-columns: 1fr;
-    }
+    .quick-add { grid-template-columns: 1fr; }
   }
 </style>

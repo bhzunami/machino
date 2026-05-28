@@ -276,58 +276,80 @@
 
 <style>
   .app-layout {
-    --accent-color: #4f46e5;
+    --accent-color: #6366f1;
+    --accent-glow:  rgba(99, 102, 241, 0.3);
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);
-    gap: 16px;
     min-height: 100vh;
-    padding: 16px 20px;
+    background: var(--bg);
+    position: relative;
+  }
+
+  .app-layout::before {
+    content: '';
+    position: fixed;
+    inset: 0;
     background:
-      radial-gradient(circle at 22% 0%, color-mix(in srgb, var(--accent-color), transparent 88%), transparent 30rem),
-      radial-gradient(circle at 100% 18%, rgba(14, 165, 233, 0.1), transparent 24rem),
-      linear-gradient(135deg, #f8fafc 0%, #f9fafb 48%, #eef2ff 100%);
+      radial-gradient(ellipse at 15% 5%,  color-mix(in srgb, var(--accent-color), transparent 70%) 0%, transparent 50%),
+      radial-gradient(ellipse at 88% 12%, rgba(56,189,248,0.1)  0%, transparent 40%),
+      radial-gradient(ellipse at 55% 95%, rgba(139,92,246,0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+    animation: bg-drift 14s ease-in-out infinite alternate;
+    transition: background 0.6s ease;
+  }
+
+  @keyframes bg-drift {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0.7; transform: scale(1.06) translateY(-8px); }
   }
 
   .workspace {
     display: grid;
     align-content: start;
-    gap: 14px;
+    gap: 12px;
+    padding: 16px 20px 40px;
+    position: relative;
+    z-index: 1;
+    min-width: 0;
   }
 
   .proj-dropdown-portal {
     position: fixed;
     z-index: 9999;
-    min-width: 160px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.18);
+    min-width: 164px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-hover);
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
     padding: 5px;
     display: grid;
     gap: 2px;
+    backdrop-filter: blur(24px);
+    animation: drop-in 0.13s cubic-bezier(0.16,1,0.3,1);
+  }
+
+  @keyframes drop-in {
+    from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0)  scale(1); }
   }
 
   .proj-dropdown-portal button {
     text-align: left;
     padding: 9px 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     background: transparent;
-    color: #111827;
+    color: var(--text);
     font-size: 0.86rem;
     font-weight: 600;
+    transition: background 0.12s;
   }
 
-  .proj-dropdown-portal button:hover {
-    background: #f3f4f6;
-  }
+  .proj-dropdown-portal button:hover { background: var(--glass-hover); }
 
-  .proj-dropdown-portal button.danger {
-    color: #dc2626;
-  }
+  .proj-dropdown-portal button.danger { color: #f87171; }
 
-  .proj-dropdown-portal button.danger:hover {
-    background: #fef2f2;
-  }
+  .proj-dropdown-portal button.danger:hover { background: rgba(248,113,113,0.12); }
 
   .centered {
     min-height: 100vh;
@@ -337,10 +359,7 @@
   }
 
   @media (max-width: 900px) {
-    .app-layout {
-      grid-template-columns: 1fr;
-      padding: 12px;
-      gap: 12px;
-    }
+    .app-layout { grid-template-columns: 1fr; }
+    .workspace { padding: 12px 14px 32px; }
   }
 </style>

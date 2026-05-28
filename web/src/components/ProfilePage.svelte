@@ -42,14 +42,31 @@
   <label>Name <input bind:value={profileForm.name} /></label>
   <label>E-Mail <input bind:value={profileForm.email} type="email" /></label>
   <button class="btn secondary" on:click={updateProfile}>Profil speichern</button>
+  <div class="section-divider"></div>
   <label>Neues Passwort <input bind:value={profileForm.password} type="password" /></label>
   <button class="btn secondary" on:click={updatePassword}>Passwort ändern</button>
 </section>
 
 <style>
   .profile-page {
-    max-width: 620px;
-    padding: 14px 20px;
+    max-width: 580px;
+    padding: 20px 24px;
+    background: var(--glass);
+    border-color: var(--border);
+  }
+
+  h2 {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .section-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
   }
 
   .stack {

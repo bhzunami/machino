@@ -129,7 +129,7 @@
       on:drop={(e) => reorderActiveTodo(e.detail, dropAfter)}
     />
   {:else}
-    <div class="empty card">Noch keine offenen Todos. Neue Aufgaben erscheinen hier untereinander.</div>
+    <div class="empty card"><span class="empty-icon">✦</span>Noch keine offenen Todos. Neue Aufgaben erscheinen hier untereinander.</div>
   {/each}
 </section>
 
@@ -172,132 +172,81 @@
 <style>
   .todo-list {
     display: grid;
-    gap: 8px;
-  }
-
-  .todo {
-    position: relative;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    padding: 11px 14px;
-  }
-
-  .todo-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  .todo-text {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.95rem;
-  }
-
-  .todo-chips {
-    display: flex;
-    align-items: center;
     gap: 6px;
-    flex-shrink: 0;
-  }
-
-  .todo-title {
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .todo-desc {
-    color: #6b7280;
-    font-weight: 400;
-  }
-
-  .meta-chip {
-    border-radius: 999px;
-    padding: 2px 9px;
-    font-size: 0.74rem;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .meta-chip.date-chip {
-    background: color-mix(in srgb, #06b6d4, white 88%);
-    color: #0e7490;
-  }
-
-  .meta-chip.prio-high {
-    background: color-mix(in srgb, #ef4444, white 86%);
-    color: #b91c1c;
-  }
-
-  .meta-chip.prio-low {
-    background: color-mix(in srgb, #3b82f6, white 86%);
-    color: #1d4ed8;
-  }
-
-  .todo.done {
-    opacity: 0.65;
-  }
-
-  .todo.done .todo-title {
-    text-decoration: line-through;
-    color: #6b7280;
-  }
-
-  .check {
-    width: 28px;
-    height: 28px;
-    border: 2px solid var(--accent-color);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color), white 92%);
-    color: var(--accent-color);
-    font-weight: 900;
-    flex-shrink: 0;
   }
 
   .completed-section {
     display: grid;
-    gap: 12px;
-    margin-top: 10px;
+    gap: 6px;
+    margin-top: 16px;
   }
 
   .completed-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 0 4px 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
   }
 
-  .completed-section h2 {
+  .completed-header h2 {
     margin: 0;
-    color: #4b5563;
-    font-size: 1rem;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 
   .btn-clear-done {
-    padding: 5px 12px;
+    padding: 4px 12px;
     border-radius: 8px;
     background: transparent;
-    border: 1px solid #fca5a5;
-    color: #dc2626;
-    font-size: 0.8rem;
-    font-weight: 600;
+    border: 1px solid rgba(248,113,113,0.25);
+    color: #f87171;
+    font-size: 0.76rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.12s, color 0.12s;
+    transition: background 0.12s, border-color 0.12s;
   }
-
   .btn-clear-done:hover {
-    background: #fef2f2;
-    border-color: #dc2626;
+    background: rgba(248,113,113,0.1);
+    border-color: rgba(248,113,113,0.45);
   }
 
   .empty {
-    padding: 30px;
+    padding: 48px 24px;
     text-align: center;
-    color: #6b7280;
+    color: var(--text-faint);
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .empty-icon {
+    font-size: 2.4rem;
+    opacity: 0.4;
+    animation: float 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes float {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-6px); }
+  }
+
+  /* Done-state overrides for inline completed todos */
+  .todo.done {
+    opacity: 0.5;
+  }
+  .todo.done .todo-title {
+    text-decoration: line-through;
+    color: var(--text-faint);
+  }
+  .todo.done .check {
+    background: color-mix(in srgb, var(--accent-color), transparent 55%);
+    border-color: var(--accent-color);
   }
 </style>

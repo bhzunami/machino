@@ -98,55 +98,59 @@
     align-items: center;
     gap: 12px;
     padding: 11px 14px;
+    background: var(--glass);
+    border-color: var(--border);
     transition:
-      transform 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease;
+      transform 0.18s cubic-bezier(0.16,1,0.3,1),
+      border-color 0.18s,
+      box-shadow 0.18s,
+      background 0.18s;
+    animation: todo-in 0.22s cubic-bezier(0.16,1,0.3,1) both;
   }
 
-  .todo[draggable='true'] {
-    cursor: grab;
+  @keyframes todo-in {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
+
+  .todo[draggable='true'] { cursor: grab; }
 
   .todo[draggable='true']:hover {
-    transform: translateY(-1px);
-    border-color: color-mix(in srgb, var(--accent-color), white 58%);
-    box-shadow: 0 18px 40px color-mix(in srgb, var(--accent-color), transparent 86%);
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent-color), transparent 60%);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px color-mix(in srgb, var(--accent-color), transparent 72%);
+    background: var(--glass-md);
   }
 
   .todo.drop-before,
   .todo.drop-after {
-    border-color: var(--accent-color);
-    background: color-mix(in srgb, var(--accent-color), white 92%);
+    border-color: color-mix(in srgb, var(--accent-color), transparent 35%);
+    background: color-mix(in srgb, var(--accent-color), transparent 90%);
   }
 
   .todo.drop-before::before,
   .todo.drop-after::after {
-    content: 'Hier einfügen';
+    content: '↓ Hier einfügen';
     position: absolute;
-    left: 18px;
-    right: 18px;
+    left: 14px;
+    right: 14px;
     display: grid;
     place-items: center;
-    height: 24px;
+    height: 22px;
     border-radius: 999px;
-    background: var(--accent-color);
+    background: linear-gradient(135deg, var(--accent-color), color-mix(in srgb, var(--accent-color), #7c3aed 50%));
     color: #fff;
-    font-size: 0.72rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
-    box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-color), transparent 62%);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--accent-color), transparent 45%);
     pointer-events: none;
+    z-index: 2;
   }
 
-  .todo.drop-before::before {
-    top: -18px;
-  }
-
-  .todo.drop-after::after {
-    bottom: -18px;
-  }
+  .todo.drop-before::before { top: -17px; }
+  .todo.drop-after::after   { bottom: -17px; }
 
   .todo-content {
     cursor: pointer;
@@ -169,84 +173,90 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
+  }
+
+  .todo-title {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .todo-desc {
+    color: var(--text-muted);
+    font-weight: 400;
   }
 
   .todo-chips {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     flex-shrink: 0;
-  }
-
-  .todo-title {
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .todo-desc {
-    color: #6b7280;
-    font-weight: 400;
   }
 
   .meta-chip {
     border-radius: 999px;
     padding: 2px 9px;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     font-weight: 700;
     white-space: nowrap;
   }
 
   .meta-chip.date-chip {
-    background: color-mix(in srgb, #06b6d4, white 88%);
-    color: #0e7490;
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.2);
+    color: #7dd3fc;
   }
 
   .meta-chip.prio-high {
-    background: color-mix(in srgb, #ef4444, white 86%);
-    color: #b91c1c;
+    background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.2);
+    color: #fca5a5;
   }
 
   .meta-chip.prio-low {
-    background: color-mix(in srgb, #3b82f6, white 86%);
-    color: #1d4ed8;
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.2);
+    color: #a5b4fc;
   }
 
+  /* Expanded detail */
   .todo-detail {
     display: grid;
     gap: 10px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--accent-color), white 94%);
-    border: 1.5px solid color-mix(in srgb, var(--accent-color), white 78%);
-    animation: expand-in 0.16s ease;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--border);
+    animation: expand-in 0.18s cubic-bezier(0.16,1,0.3,1);
+    margin-top: 2px;
   }
 
   @keyframes expand-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(-4px); max-height: 0; }
+    to   { opacity: 1; transform: translateY(0); max-height: 300px; }
   }
 
   .todo-detail label {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    font-size: 0.78rem;
+    gap: 5px;
+    font-size: 0.74rem;
     font-weight: 700;
-    color: #4b5563;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
   }
 
   .todo-detail textarea,
   .todo-detail input[type='date'],
   .todo-detail select {
-    border-radius: 8px;
-    border: 1.5px solid #e2e8f0;
-    padding: 7px 10px;
-    font-size: 0.85rem;
-    background: #fff;
-    color: #111827;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.86rem;
+    background: var(--glass);
+    color: var(--text);
+    border-color: var(--border);
     resize: none;
-    transition: border-color 0.15s;
     width: 100%;
     box-sizing: border-box;
   }
@@ -254,10 +264,11 @@
   .todo-detail textarea:focus,
   .todo-detail input[type='date']:focus,
   .todo-detail select:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 82%);
+    border-color: color-mix(in srgb, var(--accent-color), transparent 50%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 80%);
   }
+
+  .todo-detail select option { background: var(--bg-2); }
 
   .date-picker-wrap {
     position: relative;
@@ -268,12 +279,13 @@
   .date-picker-wrap input[type='date'] {
     padding-right: 34px;
     cursor: pointer;
+    color-scheme: dark;
   }
 
   .date-picker-wrap input[type='date']::-webkit-calendar-picker-indicator {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: pointer;
-    filter: invert(30%) sepia(80%) saturate(600%) hue-rotate(220deg);
+    filter: invert(1);
   }
 
   .date-clear {
@@ -283,8 +295,8 @@
     height: 20px;
     border-radius: 999px;
     border: none;
-    background: #e5e7eb;
-    color: #374151;
+    background: var(--glass-md);
+    color: var(--text-muted);
     font-size: 0.85rem;
     font-weight: 900;
     line-height: 1;
@@ -292,41 +304,49 @@
     display: grid;
     place-items: center;
     padding: 0;
-    transition: background 0.15s;
+    transition: background 0.15s, color 0.15s;
   }
-
-  .date-clear:hover {
-    background: #d1d5db;
-  }
+  .date-clear:hover { background: rgba(248,113,113,0.2); color: #fca5a5; }
 
   .detail-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
   }
 
+  /* Checkbox */
   .check {
-    width: 28px;
-    height: 28px;
-    border: 2px solid var(--accent-color);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color), white 92%);
+    width: 26px;
+    height: 26px;
+    border: 1.5px solid color-mix(in srgb, var(--accent-color), transparent 45%);
+    border-radius: 8px;
+    background: transparent;
     color: var(--accent-color);
     font-weight: 900;
     flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+    display: grid;
+    place-items: center;
+  }
+  .check:hover {
+    background: color-mix(in srgb, var(--accent-color), transparent 82%);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-color), transparent 55%);
+    transform: scale(1.08);
   }
 
   .drag-handle {
-    color: #9ca3af;
-    font-size: 1.2rem;
+    color: var(--text-faint);
+    font-size: 1rem;
     font-weight: 900;
-    letter-spacing: -0.2em;
+    letter-spacing: -0.15em;
     flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
   }
+  .todo:hover .drag-handle { opacity: 1; }
 
   @media (max-width: 900px) {
-    .detail-row {
-      grid-template-columns: 1fr;
-    }
+    .detail-row { grid-template-columns: 1fr; }
   }
 </style>
