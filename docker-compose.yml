@@ -8,6 +8,10 @@ services:
       - DATABASE_PATH=/data/machino.db
       - STATIC_DIR=/app/web/dist
       - HTTP_ADDR=:8080
+      # Registrierung deaktivieren sobald alle Accounts erstellt sind
+      - REGISTRATION_ENABLED=${REGISTRATION_ENABLED:-true}
+      # Secure Cookies + HSTS: auf true setzen wenn hinter HTTPS Reverse-Proxy (nginx/Caddy)
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
       # SMTP-Konfiguration (optional — ohne SMTP läuft der Demo-Modus)
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}

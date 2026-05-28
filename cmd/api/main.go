@@ -49,7 +49,20 @@ func main() {
 	} else {
 		logger.Warn("mailer not configured — password reset runs in demo mode (token in API response)")
 	}
-	router := handler.New(s, hub, m, logger).Router(staticDir)
+
+	registrationEnabled := env("REGISTRATION_ENABLED", "true") != "false"
+	cookieSecure := env("COOKIE_SECURE", "false") == "true"
+	if !registrationEnabled {
+		logger.Info("registration disabled — set REGISTRATION_ENABLED=true to enable")
+	}
+	if cookieSecure {
+		logger.Info("secure cookies enabled — HSTS will be sent")
+	}
+
+	router := handler.New(s, hub, m, logger).
+		WithRegistration(registrationEnabled).
+		WithCookieSecure(cookieSecure).
+		Router(staticDir)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           router,

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -10,6 +11,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const minPasswordLen = 8
+
+func validateEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
+}
+
+func validatePassword(password string) bool {
+	return len(strings.TrimSpace(password)) >= minPasswordLen
+}
+
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
@@ -17,6 +29,20 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if !decodeJSON(w, r, &req) {
+		return
+	}
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	req.Name = strings.TrimSpace(req.Name)
+	if !validateEmail(req.Email) {
+		respondError(w, http.StatusBadRequest, "Ungültige E-Mail-Adresse.")
+		return
+	}
+	if req.Name == "" {
+		respondError(w, http.StatusBadRequest, "Name ist Pflichtfeld.")
+		return
+	}
+	if !validatePassword(req.Password) {
+		respondError(w, http.StatusBadRequest, "Passwort muss mindestens 8 Zeichen lang sein.")
 		return
 	}
 	hash, err := hashPassword(req.Password)
