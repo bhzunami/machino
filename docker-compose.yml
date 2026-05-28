@@ -2,25 +2,47 @@ services:
   app:
     build: .
     container_name: machino
-    ports:
-      - "8080:8080"
+    # Kein ports-Mapping — Traefik routet direkt ins Netz
+    expose:
+      - "8080"
     environment:
       - DATABASE_PATH=/data/machino.db
       - STATIC_DIR=/app/web/dist
       - HTTP_ADDR=:8080
       # Registrierung deaktivieren sobald alle Accounts erstellt sind
       - REGISTRATION_ENABLED=${REGISTRATION_ENABLED:-true}
-      # Secure Cookies + HSTS: auf true setzen wenn hinter HTTPS Reverse-Proxy (nginx/Caddy)
-      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      # Traefik terminiert TLS → Cookies müssen Secure sein
+      - COOKIE_SECURE=true
       # SMTP-Konfiguration (optional — ohne SMTP läuft der Demo-Modus)
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM=${SMTP_FROM:-}
+    labels:
+      - "traefik.enable=true"
+      # Hostname anpassen: z.B. machino.example.com
+      - "traefik.http.routers.machino.rule=Host(`${APP_DOMAIN:-machino.localhost}`)"
+      - "traefik.http.routers.machino.entrypoints=websecure"
+      - "traefik.http.routers.machino.tls=true"
+      - "traefik.http.routers.machino.tls.certresolver=letsencrypt"
+      - "traefik.http.services.machino.loadbalancer.server.port=8080"
+      # HTTP → HTTPS Redirect
+      - "traefik.http.routers.machino-http.rule=Host(`${APP_DOMAIN:-machino.localhost}`)"
+      - "traefik.http.routers.machino-http.entrypoints=web"
+      - "traefik.http.routers.machino-http.middlewares=redirect-https"
+      - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
     volumes:
       - machino_data:/data
     restart: unless-stopped
+    networks:
+      - traefik-public
 
 volumes:
   machino_data:
+
+networks:
+  # Muss mit dem Traefik-Netzwerk übereinstimmen
+  traefik-public:
+    external: true
