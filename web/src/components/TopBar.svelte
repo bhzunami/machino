@@ -11,6 +11,7 @@
   const dispatch = createEventDispatcher()
 
   export let menuOpen = false
+  export let sidebarOpen = false
 
   let avatarEl
   let dropdownPos = { top: 0, right: 0 }
@@ -25,16 +26,23 @@
 </script>
 
 <header class="topbar card">
-  <div class="topbar-info">
-    <div class="topbar-title">
-      <span class="topbar-badge">{$currentView === 'profile' ? 'Konto' : 'Projekt'}</span>
-      <h2>{$currentView === 'profile' ? 'Profil' : $selectedProject?.title || 'Noch kein Projekt'}</h2>
+  <div class="topbar-left">
+    <button class="hamburger" aria-label="Menü öffnen" on:click|stopPropagation={() => dispatch('toggle-sidebar')}>
+      <span class="bar" class:open={sidebarOpen}></span>
+      <span class="bar" class:open={sidebarOpen}></span>
+      <span class="bar" class:open={sidebarOpen}></span>
+    </button>
+    <div class="topbar-info">
+      <div class="topbar-title">
+        <span class="topbar-badge">{$currentView === 'profile' ? 'Konto' : 'Projekt'}</span>
+        <h2>{$currentView === 'profile' ? 'Profil' : $selectedProject?.title || 'Noch kein Projekt'}</h2>
+      </div>
+      {#if ($currentView !== 'profile' && $selectedProject?.description) || $currentView === 'profile'}
+        <p class="topbar-desc muted">
+          {$currentView === 'profile' ? 'E-Mail und Passwort verwalten.' : $selectedProject.description}
+        </p>
+      {/if}
     </div>
-    {#if ($currentView !== 'profile' && $selectedProject?.description) || $currentView === 'profile'}
-      <p class="topbar-desc muted">
-        {$currentView === 'profile' ? 'E-Mail und Passwort verwalten.' : $selectedProject.description}
-      </p>
-    {/if}
   </div>
   <div class="actions">
     <span>{$currentView === 'profile' ? $user.email : `${$openTodoCount} offen`}</span>
@@ -74,6 +82,44 @@
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     padding: 12px 18px;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  /* Hamburger — nur auf Mobile sichtbar */
+  .hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .bar {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--text-muted);
+    border-radius: 2px;
+    transition: transform 0.2s, opacity 0.2s, width 0.2s;
+  }
+  .bar.open:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .bar.open:nth-child(2) { opacity: 0; width: 0; }
+  .bar.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  @media (max-width: 900px) {
+    .hamburger { display: flex; }
   }
 
   .topbar::after {

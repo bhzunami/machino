@@ -25,6 +25,7 @@
   let loading = true
   let socket = null
   let menuOpen = false
+  let sidebarOpen = false
   let projectMenuId = ''
   let dropdownPos = { top: 0, right: 0 }
 
@@ -104,6 +105,7 @@
     const cached = await getCache(TODO_CACHE_KEY(projectId), [])
     todos.set(cached)
     closeSocket()
+    sidebarOpen = false
     if (get(online) && !projectId.startsWith('local-')) {
       await refreshTodos(projectId)
       connectSocket(projectId)
@@ -231,7 +233,12 @@
   <AuthPage on:authenticated={handleAuthenticated} />
 {:else}
   <main class="app-layout" style={`--accent-color:${$selectedProject?.color || '#4f46e5'}`}>
+    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+    {#if sidebarOpen}
+      <div class="sidebar-overlay" on:click={() => (sidebarOpen = false)}></div>
+    {/if}
     <Sidebar
+      open={sidebarOpen}
       on:select-project={(e) => selectProject(e.detail)}
       on:open-project-menu={handleOpenProjectMenu}
       on:run-or-queue={(e) => runOrQueue(e.detail)}
@@ -244,7 +251,9 @@
     <section class="workspace">
       <TopBar
         {menuOpen}
+        {sidebarOpen}
         on:toggle-menu={() => (menuOpen = !menuOpen)}
+        on:toggle-sidebar={() => (sidebarOpen = !sidebarOpen)}
         on:open-profile={() => { currentView.set('profile'); menuOpen = false }}
         on:open-todos={() => { currentView.set('todos'); menuOpen = false }}
         on:logout={logout}
@@ -361,5 +370,24 @@
   @media (max-width: 900px) {
     .app-layout { grid-template-columns: 1fr; }
     .workspace { padding: 12px 14px 32px; }
+  }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(2px);
+    z-index: 199;
+    animation: fade-in 0.2s ease;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @media (max-width: 900px) {
+    .sidebar-overlay { display: block; }
   }
 </style>

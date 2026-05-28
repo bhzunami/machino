@@ -14,6 +14,8 @@
 
   const dispatch = createEventDispatcher()
 
+  export let open = false
+
   let showProjectForm = false
   let projectForm = { title: '', description: '', color: DEFAULT_PROJECT_COLOR }
   let editingProjectId = ''
@@ -116,7 +118,7 @@
   }
 </script>
 
-<aside class="sidebar">
+<aside class="sidebar" class:open>
   <div class="brand">
     <div class="brand-mark">
       <span class="brand-dot"></span>
@@ -488,6 +490,20 @@
   }
 
   @media (max-width: 900px) {
-    .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100dvh;
+      width: 280px;
+      z-index: 200;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      border-right: 1px solid var(--border);
+      box-shadow: 8px 0 40px rgba(0,0,0,0.5);
+    }
+    .sidebar.open {
+      transform: translateX(0);
+    }
   }
 </style>
