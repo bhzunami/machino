@@ -13,6 +13,7 @@
   let dropAfter = false
   let expandedTodoId = ''
   let detailForm = { description: '', dueDate: '', priority: 'normal' }
+  let completedCollapsed = true
 
   async function toggleTodo(todo) {
     const completed = !todo.completed
@@ -136,36 +137,43 @@
 {#if $completedTodos.length}
   <section class="completed-section">
     <div class="completed-header">
-      <h2>Erledigte Todos</h2>
-      <button class="btn-clear-done" on:click={deleteCompletedTodos} title="Alle erledigten Todos löschen">
-        🗑 Alle löschen
+      <button class="collapse-btn" on:click={() => (completedCollapsed = !completedCollapsed)}>
+        <span class="chevron" class:rotated={!completedCollapsed}>›</span>
+        <h2>Erledigt <span class="count">({$completedTodos.length})</span></h2>
       </button>
+      {#if !completedCollapsed}
+        <button class="btn-clear-done" on:click={deleteCompletedTodos} title="Alle erledigten Todos löschen">
+          🗑 Alle löschen
+        </button>
+      {/if}
     </div>
-    <div class="todo-list">
-      {#each $completedTodos as todo (todo.id)}
-        <article class="todo done card">
-          <button class="check" on:click={() => toggleTodo(todo)}>✓</button>
-          <div>
-            <div class="todo-row">
-              <div class="todo-text">
-                <span class="todo-title">{todo.title}</span>
-                {#if todo.description}
-                  <span class="todo-desc"> · {todo.description}</span>
-                {/if}
-              </div>
-              <div class="todo-chips">
-                {#if todo.dueDate}
-                  <span class="meta-chip date-chip">📅 {String(todo.dueDate).slice(0, 10)}</span>
-                {/if}
-                {#if todo.priority && todo.priority !== 'normal'}
-                  <span class="meta-chip prio-{todo.priority}">{todo.priority === 'high' ? '🔴 Hoch' : '🔵 Niedrig'}</span>
-                {/if}
+    {#if !completedCollapsed}
+      <div class="todo-list">
+        {#each $completedTodos as todo (todo.id)}
+          <article class="todo done card">
+            <button class="check" on:click={() => toggleTodo(todo)}>✓</button>
+            <div>
+              <div class="todo-row">
+                <div class="todo-text">
+                  <span class="todo-title">{todo.title}</span>
+                  {#if todo.description}
+                    <span class="todo-desc"> · {todo.description}</span>
+                  {/if}
+                </div>
+                <div class="todo-chips">
+                  {#if todo.dueDate}
+                    <span class="meta-chip date-chip">📅 {String(todo.dueDate).slice(0, 10)}</span>
+                  {/if}
+                  {#if todo.priority && todo.priority !== 'normal'}
+                    <span class="meta-chip prio-{todo.priority}">{todo.priority === 'high' ? '🔴 Hoch' : '🔵 Niedrig'}</span>
+                  {/if}
+                </div>
               </div>
             </div>
-          </div>
-        </article>
-      {/each}
-    </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
   </section>
 {/if}
 
@@ -190,6 +198,27 @@
     margin-bottom: 4px;
   }
 
+  .collapse-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+  }
+
+  .chevron {
+    font-size: 1.1rem;
+    color: var(--text-faint);
+    transition: transform 0.2s cubic-bezier(0.16,1,0.3,1);
+    display: inline-block;
+    transform: rotate(0deg);
+    line-height: 1;
+  }
+  .chevron.rotated { transform: rotate(90deg); }
+
   .completed-header h2 {
     margin: 0;
     color: var(--text-faint);
@@ -197,6 +226,11 @@
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+  }
+
+  .count {
+    color: var(--text-faint);
+    font-weight: 600;
   }
 
   .btn-clear-done {
