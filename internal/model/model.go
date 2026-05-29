@@ -20,6 +20,7 @@ type Project struct {
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	Color       string    `json:"color"`
+	MoveDone    bool      `json:"moveDone"`
 	Favorite    bool      `json:"favorite"`
 	IsOwner     bool      `json:"isOwner"`
 	MemberCount int       `json:"memberCount"`
@@ -35,9 +36,19 @@ type ProjectMember struct {
 	JoinedAt time.Time `json:"joinedAt"`
 }
 
+type Column struct {
+	ID        string    `json:"id"`
+	ProjectID string    `json:"projectId"`
+	Title     string    `json:"title"`
+	Position  int       `json:"position"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 type Todo struct {
 	ID          string     `json:"id"`
 	ProjectID   string     `json:"projectId"`
+	ColumnID    *string    `json:"columnId,omitempty"`
 	Title       string     `json:"title"`
 	Description string     `json:"description"`
 	DueDate     *time.Time `json:"dueDate,omitempty"`

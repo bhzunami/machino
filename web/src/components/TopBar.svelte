@@ -48,10 +48,22 @@
               </svg>
             </span>
             {#if $selectedProject.isOwner}
-              {$selectedProject.memberCount - 1} {$selectedProject.memberCount - 1 === 1 ? 'Mitglied' : 'Mitglieder'}
+              <span class="shared-chip-label">{$selectedProject.memberCount - 1} {$selectedProject.memberCount - 1 === 1 ? 'Mitglied' : 'Mitglieder'}</span>
             {:else}
-              Geteilt
+              <span class="shared-chip-label">Geteilt</span>
             {/if}
+          </span>
+        {/if}
+        {#if $currentView !== 'profile' && $selectedProject?.moveDone === false}
+          <span class="packlist-chip" title="Todos werden nicht nach 'Erledigt' verschoben">
+            <span class="packlist-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                <rect x="8" y="2" width="8" height="4" rx="1"/>
+                <path d="m9 14 2 2 4-4"/>
+              </svg>
+            </span>
+            <span class="packlist-chip-label">Packlisten-Modus</span>
           </span>
         {/if}
       </div>
@@ -150,6 +162,20 @@
 
   @media (max-width: 900px) {
     .hamburger { display: flex; }
+    /* Hide "X offen" text to save space */
+    .actions > span { display: none; }
+  }
+
+  @media (max-width: 600px) {
+    .topbar { padding: 14px 16px 12px; }
+    /* Hide "PROJEKT" badge on very small screens */
+    .topbar-badge { display: none; }
+    /* Chips: icon only, no label text */
+    .shared-chip-label,
+    .packlist-chip-label { display: none; }
+    /* Shrink chips to icon-only pills */
+    .shared-chip,
+    .packlist-chip { padding: 4px 5px; }
   }
 
   .topbar::after {
@@ -338,5 +364,37 @@
     display: flex;
     align-items: center;
     opacity: 0.85;
+  }
+
+  .packlist-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px 2px 6px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: default;
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .packlist-chip:hover {
+    background: rgba(245, 158, 11, 0.22);
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+  }
+  :global([data-theme="light"]) .packlist-chip {
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.25);
+  }
+  .packlist-icon {
+    display: flex;
+    align-items: center;
+    opacity: 0.9;
   }
 </style>

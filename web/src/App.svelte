@@ -8,6 +8,7 @@
     user,
     projects,
     todos,
+    columns,
     selectedProjectId,
     online,
     currentView,
@@ -108,6 +109,7 @@
     await setCache('selectedProjectId', projectId)
     const cached = await getCache(TODO_CACHE_KEY(projectId), [])
     todos.set(cached)
+    columns.set([])
     closeSocket()
     sidebarOpen = false
     if (get(online) && !projectId.startsWith('local-')) {
@@ -119,10 +121,14 @@
   async function refreshTodos(projectId) {
     const $id = projectId || get(selectedProjectId)
     if (!$id || $id.startsWith('local-')) return
-    const payload = await api(API.projectTodos($id))
-    const list = payload.todos || []
+    const [todoPayload, colPayload] = await Promise.all([
+      api(API.projectTodos($id)),
+      api(API.projectColumns($id)),
+    ])
+    const list = todoPayload.todos || []
     todos.set(list)
     await setCache(TODO_CACHE_KEY($id), list)
+    columns.set(colPayload.columns || [])
   }
 
   async function runOrQueue(operation) {
@@ -133,8 +139,9 @@
     }
     try {
       await api(operation.path, { method: operation.method, body: operation.body })
-      // Optimistic updates already applied — no need to refetch on own mutations.
-      // WebSocket events from other users trigger refreshTodos separately.
+      if (shouldRefreshProjectData(operation)) {
+        await refreshTodos(get(selectedProjectId))
+      }
     } catch (err) {
       if (err.status === 401) {
         user.set(null)
@@ -147,6 +154,15 @@
       }
       error.set(err.message)
     }
+  }
+
+  function shouldRefreshProjectData(operation) {
+    return (
+      operation.path.includes('/todos') ||
+      operation.path.includes('/columns') ||
+      Object.prototype.hasOwnProperty.call(operation.body || {}, 'columnId') ||
+      Object.prototype.hasOwnProperty.call(operation.body || {}, 'clearColumn')
+    )
   }
 
   async function syncQueue() {
@@ -311,6 +327,7 @@
     project={editProject}
     on:save={handleSaveEditProject}
     on:close={() => (editProject = null)}
+    on:run-or-queue={(e) => runOrQueue(e.detail)}
   />
 {/if}
 

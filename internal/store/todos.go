@@ -13,7 +13,7 @@ import (
 
 func (s *Store) ListTodos(ctx context.Context, userID, projectID string) ([]model.Todo, error) {
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, project_id, title, description, due_date, priority, completed, position, created_at, updated_at
+SELECT id, project_id, column_id, title, description, due_date, priority, completed, position, created_at, updated_at
 FROM todos
 WHERE project_id = ? AND EXISTS (SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ?)
 ORDER BY position ASC, created_at ASC`, projectID, projectID, userID)
@@ -25,11 +25,15 @@ ORDER BY position ASC, created_at ASC`, projectID, projectID, userID)
 	for rows.Next() {
 		var t model.Todo
 		var due sql.NullTime
-		if err := rows.Scan(&t.ID, &t.ProjectID, &t.Title, &t.Description, &due, &t.Priority, &t.Completed, &t.Position, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		var columnID sql.NullString
+		if err := rows.Scan(&t.ID, &t.ProjectID, &columnID, &t.Title, &t.Description, &due, &t.Priority, &t.Completed, &t.Position, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan todo: %w", err)
 		}
 		if due.Valid {
 			t.DueDate = &due.Time
+		}
+		if columnID.Valid {
+			t.ColumnID = &columnID.String
 		}
 		todos = append(todos, t)
 	}
@@ -39,7 +43,7 @@ ORDER BY position ASC, created_at ASC`, projectID, projectID, userID)
 	return todos, nil
 }
 
-func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, description, priority string, dueDate *time.Time) (model.Todo, error) {
+func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, description, priority string, dueDate *time.Time, columnID *string) (model.Todo, error) {
 	title = strings.TrimSpace(title)
 	if title == "" || projectID == "" {
 		return model.Todo{}, ErrInvalidInput
@@ -70,9 +74,13 @@ func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, descri
 	if dueDate != nil {
 		due = dueDate.UTC()
 	}
+	var colID any
+	if columnID != nil {
+		colID = *columnID
+	}
 	if _, err = tx.ExecContext(ctx,
-		`INSERT INTO todos (id, project_id, title, description, due_date, priority, completed, position, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
-		id, projectID, title, strings.TrimSpace(description), due, priority, position, userID, now, now); err != nil {
+		`INSERT INTO todos (id, project_id, column_id, title, description, due_date, priority, completed, position, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+		id, projectID, colID, title, strings.TrimSpace(description), due, priority, position, userID, now, now); err != nil {
 		return model.Todo{}, fmt.Errorf("insert todo: %w", err)
 	}
 	// Verify membership before committing.
@@ -96,6 +104,7 @@ func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, descri
 	return model.Todo{
 		ID:          id,
 		ProjectID:   projectID,
+		ColumnID:    columnID,
 		Title:       title,
 		Description: strings.TrimSpace(description),
 		DueDate:     dueDate,
@@ -106,7 +115,13 @@ func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, descri
 	}, nil
 }
 
-func (s *Store) UpdateTodo(ctx context.Context, userID, todoID string, completed *bool, title, description, priority *string, dueDate **time.Time) (model.Todo, error) {
+// ColumnUpdate is a sentinel to distinguish "not provided" from "set to nil".
+type ColumnUpdate struct {
+	Set bool
+	Val *string
+}
+
+func (s *Store) UpdateTodo(ctx context.Context, userID, todoID string, completed *bool, title, description, priority *string, dueDate **time.Time, columnID *ColumnUpdate) (model.Todo, error) {
 	current, err := s.todoByID(ctx, todoID)
 	if err != nil {
 		return model.Todo{}, err
@@ -130,16 +145,23 @@ func (s *Store) UpdateTodo(ctx context.Context, userID, todoID string, completed
 	if dueDate != nil {
 		current.DueDate = *dueDate
 	}
+	if columnID != nil && columnID.Set {
+		current.ColumnID = columnID.Val
+	}
 	now := time.Now().UTC()
 	var due any
 	if current.DueDate != nil {
 		due = current.DueDate.UTC()
 	}
+	var colID any
+	if current.ColumnID != nil {
+		colID = *current.ColumnID
+	}
 	// Include project ownership check in the UPDATE to prevent IDOR.
 	result, err := s.db.ExecContext(ctx,
-		`UPDATE todos SET title = ?, description = ?, due_date = ?, priority = ?, completed = ?, updated_at = ?
+		`UPDATE todos SET title = ?, description = ?, due_date = ?, priority = ?, completed = ?, column_id = ?, updated_at = ?
 		 WHERE id = ? AND project_id IN (SELECT project_id FROM project_members WHERE project_id = todos.project_id AND user_id = ?)`,
-		current.Title, current.Description, due, current.Priority, boolToInt(current.Completed), now, todoID, userID)
+		current.Title, current.Description, due, current.Priority, boolToInt(current.Completed), colID, now, todoID, userID)
 	if err != nil {
 		return model.Todo{}, fmt.Errorf("update todo: %w", err)
 	}
@@ -212,11 +234,12 @@ func (s *Store) ReorderTodos(ctx context.Context, userID, projectID string, ids 
 
 func (s *Store) todoByID(ctx context.Context, todoID string) (model.Todo, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, title, description, due_date, priority, completed, position, created_at, updated_at FROM todos WHERE id = ?`,
+		`SELECT id, project_id, column_id, title, description, due_date, priority, completed, position, created_at, updated_at FROM todos WHERE id = ?`,
 		todoID)
 	var t model.Todo
 	var due sql.NullTime
-	if err := row.Scan(&t.ID, &t.ProjectID, &t.Title, &t.Description, &due, &t.Priority, &t.Completed, &t.Position, &t.CreatedAt, &t.UpdatedAt); err != nil {
+	var columnID sql.NullString
+	if err := row.Scan(&t.ID, &t.ProjectID, &columnID, &t.Title, &t.Description, &due, &t.Priority, &t.Completed, &t.Position, &t.CreatedAt, &t.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.Todo{}, ErrNotFound
 		}
@@ -224,6 +247,9 @@ func (s *Store) todoByID(ctx context.Context, todoID string) (model.Todo, error)
 	}
 	if due.Valid {
 		t.DueDate = &due.Time
+	}
+	if columnID.Valid {
+		t.ColumnID = &columnID.String
 	}
 	return t, nil
 }

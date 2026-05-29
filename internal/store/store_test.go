@@ -23,32 +23,32 @@ func TestProjectTodoFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
-	project, err := s.CreateProject(ctx, user.ID, "Launch", "Ship todo app", "#22c55e")
+	project, err := s.CreateProject(ctx, user.ID, "Launch", "Ship todo app", "#22c55e", true)
 	if err != nil {
 		t.Fatalf("create project: %v", err)
 	}
-	first, err := s.CreateTodo(ctx, user.ID, project.ID, "One", "", "high", nil)
+	first, err := s.CreateTodo(ctx, user.ID, project.ID, "One", "", "high", nil, nil)
 	if err != nil {
 		t.Fatalf("create first todo: %v", err)
 	}
-	second, err := s.CreateTodo(ctx, user.ID, project.ID, "Two", "", "normal", nil)
+	second, err := s.CreateTodo(ctx, user.ID, project.ID, "Two", "", "normal", nil, nil)
 	if err != nil {
 		t.Fatalf("create second todo: %v", err)
 	}
 	if first.Position != 1 || second.Position != 1 {
 		t.Fatalf("unexpected positions: %d %d", first.Position, second.Position)
 	}
-	todos, err := s.ListTodos(ctx, project.ID)
+	todos, err := s.ListTodos(ctx, user.ID, project.ID)
 	if err != nil {
 		t.Fatalf("list todos after create: %v", err)
 	}
 	if len(todos) != 2 || todos[0].ID != second.ID || todos[1].ID != first.ID {
 		t.Fatalf("new todo should be listed first: %#v", todos)
 	}
-	if err := s.ReorderTodos(ctx, project.ID, []string{second.ID, first.ID}); err != nil {
+	if err := s.ReorderTodos(ctx, user.ID, project.ID, []string{second.ID, first.ID}); err != nil {
 		t.Fatalf("reorder todos: %v", err)
 	}
-	todos, err = s.ListTodos(ctx, project.ID)
+	todos, err = s.ListTodos(ctx, user.ID, project.ID)
 	if err != nil {
 		t.Fatalf("list todos: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestProjectTodoFlow(t *testing.T) {
 		t.Fatalf("unexpected order: %#v", todos)
 	}
 	completed := true
-	updated, err := s.UpdateTodo(ctx, first.ID, &completed, nil, nil, nil, nil)
+	updated, err := s.UpdateTodo(ctx, user.ID, first.ID, &completed, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("update todo: %v", err)
 	}

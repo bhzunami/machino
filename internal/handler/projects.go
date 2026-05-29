@@ -22,11 +22,16 @@ func (h *Handler) createProject(w http.ResponseWriter, r *http.Request, user mod
 		Title       string `json:"title"`
 		Description string `json:"description"`
 		Color       string `json:"color"`
+		MoveDone    *bool  `json:"moveDone"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	project, err := h.store.CreateProject(r.Context(), user.ID, req.Title, req.Description, req.Color)
+	moveDone := true
+	if req.MoveDone != nil {
+		moveDone = *req.MoveDone
+	}
+	project, err := h.store.CreateProject(r.Context(), user.ID, req.Title, req.Description, req.Color, moveDone)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return
@@ -39,12 +44,17 @@ func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request, user mod
 		Title       string `json:"title"`
 		Description string `json:"description"`
 		Color       string `json:"color"`
+		MoveDone    *bool  `json:"moveDone"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
 	projectID := mux.Vars(r)["projectID"]
-	project, err := h.store.UpdateProject(r.Context(), user.ID, projectID, req.Title, req.Description, req.Color)
+	moveDone := true
+	if req.MoveDone != nil {
+		moveDone = *req.MoveDone
+	}
+	project, err := h.store.UpdateProject(r.Context(), user.ID, projectID, req.Title, req.Description, req.Color, moveDone)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return
