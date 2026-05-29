@@ -52,11 +52,13 @@
 <form class="quick-add card" on:submit|preventDefault={createTodo}>
   <input
     bind:value={todoForm.title}
-    placeholder="Neues Todo eingeben und Enter drücken..."
+    placeholder="Neue Aufgabe…"
     aria-label="Neues Todo"
     disabled={!$selectedProjectId}
   />
-  <button class="btn" type="submit" disabled={!$selectedProjectId}>Hinzufügen</button>
+  <button class="btn enter-btn" type="submit" disabled={!$selectedProjectId} title="Hinzufügen (Enter)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+  </button>
 </form>
 
 <style>
@@ -89,9 +91,11 @@
 
   .quick-add input::placeholder { color: var(--text-faint); }
 
-  .quick-add .btn {
-    padding: 8px 16px;
-    font-size: 0.84rem;
+  .quick-add .enter-btn {
+    padding: 8px 14px;
+    display: grid;
+    place-items: center;
+    min-width: 42px;
   }
 
   @media (max-width: 900px) {

@@ -12,7 +12,7 @@
   let dragOverTodoId = ''
   let dropAfter = false
   let expandedTodoId = ''
-  let detailForm = { description: '', dueDate: '', priority: 'normal' }
+  let detailForm = { title: '', description: '', dueDate: '', priority: 'normal' }
   let completedCollapsed = true
 
   async function toggleTodo(todo) {
@@ -41,6 +41,7 @@
     }
     expandedTodoId = todo.id
     detailForm = {
+      title: todo.title || '',
       description: todo.description || '',
       dueDate: todo.dueDate ? String(todo.dueDate).slice(0, 10) : '',
       priority: todo.priority || 'normal',
@@ -49,7 +50,10 @@
 
   async function saveTodoDetail({ todoId, form }) {
     const $selectedProjectId = get(selectedProjectId)
+    const title = form.title?.trim()
+    if (!title) return // Titel darf nicht leer sein
     const body = {
+      title,
       description: form.description || null,
       dueDate: form.dueDate || null,
       priority: form.priority,
@@ -57,7 +61,7 @@
     todos.update(($todos) =>
       $todos.map((t) =>
         t.id === todoId
-          ? { ...t, description: body.description, dueDate: body.dueDate, priority: body.priority }
+          ? { ...t, title: body.title, description: body.description, dueDate: body.dueDate, priority: body.priority }
           : t,
       ),
     )
@@ -117,7 +121,7 @@
     <TodoItem
       {todo}
       expanded={expandedTodoId === todo.id}
-      detailForm={expandedTodoId === todo.id ? detailForm : { description: todo.description || '', dueDate: todo.dueDate ? String(todo.dueDate).slice(0, 10) : '', priority: todo.priority || 'normal' }}
+      detailForm={expandedTodoId === todo.id ? detailForm : { title: todo.title || '', description: todo.description || '', dueDate: todo.dueDate ? String(todo.dueDate).slice(0, 10) : '', priority: todo.priority || 'normal' }}
       dragOverId={dragOverTodoId}
       {dropAfter}
       on:toggle={(e) => toggleTodo(e.detail)}
@@ -130,7 +134,13 @@
       on:drop={(e) => reorderActiveTodo(e.detail, dropAfter)}
     />
   {:else}
-    <div class="empty card"><span class="empty-icon">✦</span>Noch keine offenen Todos. Neue Aufgaben erscheinen hier untereinander.</div>
+    <div class="empty card">
+      <span class="empty-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.35"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+      </span>
+      <strong>Keine offenen Todos</strong>
+      <span>Oben eingeben und Enter drücken, um eine Aufgabe zu erstellen.</span>
+    </div>
   {/each}
 </section>
 
@@ -250,30 +260,32 @@
   }
 
   .empty {
-    padding: 48px 24px;
+    padding: 52px 24px;
     text-align: center;
     color: var(--text-faint);
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .empty strong {
+    color: var(--text-muted);
+    font-size: 0.95rem;
   }
 
   .empty-icon {
-    font-size: 2.4rem;
-    opacity: 0.4;
-    animation: float 3s ease-in-out infinite alternate;
-  }
-
-  @keyframes float {
-    from { transform: translateY(0); }
-    to   { transform: translateY(-6px); }
+    color: var(--text-faint);
+    margin-bottom: 4px;
   }
 
   /* Done-state overrides for inline completed todos */
   .todo.done {
-    opacity: 0.5;
+    opacity: 0.62;
     display: flex;
     align-items: center;
     gap: 10px;

@@ -37,6 +37,23 @@
       <div class="topbar-title">
         <span class="topbar-badge">{$currentView === 'profile' ? 'Konto' : 'Projekt'}</span>
         <h2>{$currentView === 'profile' ? 'Profil' : $selectedProject?.title || 'Noch kein Projekt'}</h2>
+        {#if $currentView !== 'profile' && $selectedProject && $selectedProject.memberCount > 1}
+          <span class="shared-chip" class:guest={!$selectedProject.isOwner} title={$selectedProject.isOwner ? `Du teilst dieses Projekt mit ${$selectedProject.memberCount - 1} ${$selectedProject.memberCount - 1 === 1 ? 'Person' : 'Personen'}` : 'Dieses Projekt wurde mit dir geteilt'}>
+            <span class="shared-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </span>
+            {#if $selectedProject.isOwner}
+              {$selectedProject.memberCount - 1} {$selectedProject.memberCount - 1 === 1 ? 'Mitglied' : 'Mitglieder'}
+            {:else}
+              Geteilt
+            {/if}
+          </span>
+        {/if}
       </div>
       {#if ($currentView !== 'profile' && $selectedProject?.description) || $currentView === 'profile'}
         <p class="topbar-desc muted">
@@ -86,11 +103,15 @@
     gap: 12px;
     position: relative;
     overflow: visible;
-    background: var(--glass);
-    border-color: var(--border);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    padding: 12px 18px;
+    /* Flat header — no round card, just a clean bottom border */
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: 20px 28px 18px;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .topbar-left {
@@ -157,7 +178,7 @@
 
   .topbar-title h2 {
     margin: 0;
-    font-size: 1rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--text);
     white-space: nowrap;
@@ -272,6 +293,50 @@
     transition: background 0.12s;
   }
   .dropdown-portal button:hover { background: var(--glass-hover); }
-  .dropdown-portal button:last-child { color: #f87171; }
-  .dropdown-portal button:last-child:hover { background: rgba(248,113,113,0.12); }
+  .shared-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px 2px 6px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: default;
+    /* Owner: accent tint */
+    background: color-mix(in srgb, var(--accent-color), transparent 82%);
+    color: color-mix(in srgb, var(--accent-color), white 25%);
+    border: 1px solid color-mix(in srgb, var(--accent-color), transparent 60%);
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .shared-chip:hover {
+    background: color-mix(in srgb, var(--accent-color), transparent 70%);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-color), transparent 55%);
+  }
+  /* Guest (shared with me): teal/green tint */
+  .shared-chip.guest {
+    background: rgba(20, 184, 166, 0.12);
+    color: #2dd4bf;
+    border-color: rgba(20, 184, 166, 0.28);
+  }
+  .shared-chip.guest:hover {
+    background: rgba(20, 184, 166, 0.22);
+    box-shadow: 0 0 12px rgba(20, 184, 166, 0.25);
+  }
+  :global([data-theme="light"]) .shared-chip.guest {
+    color: #0d9488;
+    background: rgba(20, 184, 166, 0.1);
+    border-color: rgba(20, 184, 166, 0.25);
+  }
+  :global([data-theme="light"]) .shared-chip {
+    color: color-mix(in srgb, var(--accent-color), #1e1e30 15%);
+  }
+
+  .shared-icon {
+    display: flex;
+    align-items: center;
+    opacity: 0.85;
+  }
 </style>

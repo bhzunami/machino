@@ -74,6 +74,13 @@ created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 created_at DATETIME NOT NULL,
 updated_at DATETIME NOT NULL
 );
+CREATE TABLE IF NOT EXISTS project_members (
+project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+user_id    TEXT NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+role       TEXT NOT NULL DEFAULT 'member',
+joined_at  DATETIME NOT NULL,
+PRIMARY KEY (project_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS project_favorites (
 user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -96,6 +103,19 @@ CREATE INDEX IF NOT EXISTS idx_todos_project_position ON todos(project_id, posit
 `)
 if err != nil {
 return fmt.Errorf("create schema: %w", err)
+}
+// Backfill project_members for existing projects (idempotent).
+if _, err := s.db.ExecContext(ctx, `
+INSERT OR IGNORE INTO project_members (project_id, user_id, role, joined_at)
+SELECT id, created_by, 'owner', created_at FROM projects;
+`); err != nil {
+return fmt.Errorf("backfill project members: %w", err)
+}
+// Add searchable column to users if not present (idempotent).
+if _, err := s.db.ExecContext(ctx,
+	`ALTER TABLE users ADD COLUMN searchable INTEGER NOT NULL DEFAULT 1`,
+); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+	return fmt.Errorf("add searchable column: %w", err)
 }
 return nil
 }

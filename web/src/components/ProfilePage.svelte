@@ -2,10 +2,20 @@
   import { api } from '../lib/api.js'
   import { user, error, success } from '../lib/stores.js'
 
-  let profileForm = { email: $user?.email || '', name: $user?.name || '', password: '' }
+  let profileForm = {
+    email: $user?.email || '',
+    name: $user?.name || '',
+    searchable: $user?.searchable ?? true,
+    password: '',
+  }
 
   $: if ($user) {
-    profileForm = { email: $user.email, name: $user.name || '', password: '' }
+    profileForm = {
+      email: $user.email,
+      name: $user.name || '',
+      searchable: $user.searchable ?? true,
+      password: '',
+    }
   }
 
   async function updateProfile() {
@@ -14,10 +24,10 @@
     try {
       const payload = await api('/api/profile', {
         method: 'PUT',
-        body: { email: profileForm.email, name: profileForm.name },
+        body: { email: profileForm.email, name: profileForm.name, searchable: profileForm.searchable },
       })
       user.set(payload.user)
-      profileForm = { email: payload.user.email, name: payload.user.name || '', password: '' }
+      profileForm = { ...profileForm, email: payload.user.email, name: payload.user.name || '', password: '' }
       success.set('Profil gespeichert.')
     } catch (err) {
       error.set(err.message)
@@ -39,11 +49,39 @@
 
 <section class="card profile-page stack">
   <h2>Profil</h2>
-  <label>Name <input bind:value={profileForm.name} /></label>
-  <label>E-Mail <input bind:value={profileForm.email} type="email" /></label>
+  <label>
+    Name
+    <input bind:value={profileForm.name} autocomplete="name" />
+  </label>
+  <label>
+    E-Mail
+    <input bind:value={profileForm.email} type="email" autocomplete="email" />
+  </label>
+
+  <div class="toggle-row">
+    <div class="toggle-text">
+      <span class="toggle-label">In Projektsuche auffindbar</span>
+      <span class="toggle-desc">Andere Nutzer können dich beim Teilen von Projekten über Name oder E-Mail finden.</span>
+    </div>
+    <button
+      type="button"
+      class="toggle-btn"
+      class:on={profileForm.searchable}
+      aria-pressed={profileForm.searchable}
+      on:click={() => (profileForm.searchable = !profileForm.searchable)}
+    >
+      <span class="toggle-knob"></span>
+    </button>
+  </div>
+
   <button class="btn secondary" on:click={updateProfile}>Profil speichern</button>
+
   <div class="section-divider"></div>
-  <label>Neues Passwort <input bind:value={profileForm.password} type="password" /></label>
+
+  <label>
+    Neues Passwort
+    <input bind:value={profileForm.password} type="password" autocomplete="new-password" placeholder="Mindestens 8 Zeichen…" />
+  </label>
   <button class="btn secondary" on:click={updatePassword}>Passwort ändern</button>
 </section>
 
@@ -81,5 +119,67 @@
   .stack {
     display: grid;
     gap: 14px;
+  }
+
+  /* Toggle switch */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+  }
+
+  .toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .toggle-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .toggle-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  .toggle-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    border: none;
+    background: var(--border);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    padding: 0;
+  }
+  .toggle-btn.on {
+    background: #6366f1;
+  }
+
+  .toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    transition: transform 0.2s cubic-bezier(0.16,1,0.3,1);
+    display: block;
+  }
+  .toggle-btn.on .toggle-knob {
+    transform: translateX(20px);
   }
 </style>

@@ -59,6 +59,7 @@ func (h *Handler) Router(staticDir string) http.Handler {
 	api.HandleFunc("/me", h.auth(h.me)).Methods(http.MethodGet)
 	api.HandleFunc("/profile", h.auth(h.updateProfile)).Methods(http.MethodPut)
 	api.HandleFunc("/profile/password", h.auth(h.updatePassword)).Methods(http.MethodPut)
+	api.HandleFunc("/users/search", h.auth(h.searchUsers)).Methods(http.MethodGet)
 	api.HandleFunc("/projects", h.auth(h.listProjects)).Methods(http.MethodGet)
 	api.HandleFunc("/projects", h.auth(h.createProject)).Methods(http.MethodPost)
 	api.HandleFunc("/projects/{projectID}", h.auth(h.updateProject)).Methods(http.MethodPut)
@@ -69,6 +70,9 @@ func (h *Handler) Router(staticDir string) http.Handler {
 	api.HandleFunc("/projects/{projectID}/todos/completed", h.auth(h.deleteCompletedTodos)).Methods(http.MethodDelete)
 	api.HandleFunc("/projects/{projectID}/todos/reorder", h.auth(h.reorderTodos)).Methods(http.MethodPut)
 	api.HandleFunc("/projects/{projectID}/ws", h.auth(h.projectWS)).Methods(http.MethodGet)
+	api.HandleFunc("/projects/{projectID}/members", h.auth(h.listMembers)).Methods(http.MethodGet)
+	api.HandleFunc("/projects/{projectID}/members", h.auth(h.addMember)).Methods(http.MethodPost)
+	api.HandleFunc("/projects/{projectID}/members/{memberUserID}", h.auth(h.removeMember)).Methods(http.MethodDelete)
 	api.HandleFunc("/todos/{todoID}", h.auth(h.updateTodo)).Methods(http.MethodPatch)
 
 	if staticDir != "" {

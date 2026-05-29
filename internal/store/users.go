@@ -21,7 +21,7 @@ func (s *Store) CreateUser(ctx context.Context, email, name, passwordHash string
 		return model.User{}, err
 	}
 	now := time.Now().UTC()
-	_, err = s.db.ExecContext(ctx, `INSERT INTO users (id, email, name, password_hash, created_at) VALUES (?, ?, ?, ?, ?)`,
+	_, err = s.db.ExecContext(ctx, `INSERT INTO users (id, email, name, password_hash, created_at, searchable) VALUES (?, ?, ?, ?, ?, 1)`,
 		id, email, strings.TrimSpace(name), passwordHash, now)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
@@ -29,37 +29,41 @@ func (s *Store) CreateUser(ctx context.Context, email, name, passwordHash string
 		}
 		return model.User{}, fmt.Errorf("insert user: %w", err)
 	}
-	return model.User{ID: id, Email: email, Name: strings.TrimSpace(name), CreatedAt: now}, nil
+	return model.User{ID: id, Email: email, Name: strings.TrimSpace(name), Searchable: true, CreatedAt: now}, nil
 }
 
 func (s *Store) UserByEmail(ctx context.Context, email string) (model.User, string, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, password_hash, created_at FROM users WHERE email = ?`,
+		`SELECT id, email, name, password_hash, created_at, searchable FROM users WHERE email = ?`,
 		NormalizeEmail(email))
 	var u model.User
 	var passwordHash string
-	if err := row.Scan(&u.ID, &u.Email, &u.Name, &passwordHash, &u.CreatedAt); err != nil {
+	var searchable int
+	if err := row.Scan(&u.ID, &u.Email, &u.Name, &passwordHash, &u.CreatedAt, &searchable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.User{}, "", ErrUnauthorized
 		}
 		return model.User{}, "", fmt.Errorf("select user by email: %w", err)
 	}
+	u.Searchable = searchable == 1
 	return u, passwordHash, nil
 }
 
 func (s *Store) UserBySession(ctx context.Context, token string) (model.User, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT u.id, u.email, u.name, u.created_at
+SELECT u.id, u.email, u.name, u.created_at, u.searchable
 FROM sessions s
 JOIN users u ON u.id = s.user_id
 WHERE s.token = ? AND s.expires_at > ?`, token, time.Now().UTC())
 	var u model.User
-	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt); err != nil {
+	var searchable int
+	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt, &searchable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.User{}, ErrUnauthorized
 		}
 		return model.User{}, fmt.Errorf("select session user: %w", err)
 	}
+	u.Searchable = searchable == 1
 	return u, nil
 }
 
@@ -84,14 +88,14 @@ func (s *Store) DeleteSession(ctx context.Context, token string) error {
 	return nil
 }
 
-func (s *Store) UpdateProfile(ctx context.Context, userID, email, name string) (model.User, error) {
+func (s *Store) UpdateProfile(ctx context.Context, userID, email, name string, searchable bool) (model.User, error) {
 	email = NormalizeEmail(email)
 	if email == "" {
 		return model.User{}, ErrInvalidInput
 	}
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE users SET email = ?, name = ? WHERE id = ?`,
-		email, strings.TrimSpace(name), userID)
+		`UPDATE users SET email = ?, name = ?, searchable = ? WHERE id = ?`,
+		email, strings.TrimSpace(name), boolToInt(searchable), userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return model.User{}, ErrEmailConflict
@@ -166,13 +170,51 @@ func (s *Store) UsePasswordReset(ctx context.Context, token, passwordHash string
 
 func (s *Store) userByID(ctx context.Context, userID string) (model.User, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, created_at FROM users WHERE id = ?`, userID)
+		`SELECT id, email, name, created_at, searchable FROM users WHERE id = ?`, userID)
 	var u model.User
-	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt); err != nil {
+	var searchable int
+	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt, &searchable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.User{}, ErrNotFound
 		}
 		return model.User{}, fmt.Errorf("select user: %w", err)
 	}
+	u.Searchable = searchable == 1
 	return u, nil
+}
+
+// SearchUsers returns users whose name or email starts with q (case-insensitive),
+// limited to users who have opted in (searchable = 1), excluding the caller.
+// Only name and id are returned — never email — to protect privacy.
+func (s *Store) SearchUsers(ctx context.Context, q, excludeUserID string) ([]model.UserSearchResult, error) {
+	q = strings.TrimSpace(q)
+	if len([]rune(q)) < 3 {
+		return nil, ErrInvalidInput
+	}
+	pattern := q + "%"
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, name FROM users
+WHERE searchable = 1
+  AND id != ?
+  AND (name LIKE ? OR email LIKE ?)
+ORDER BY name
+LIMIT 10`,
+		excludeUserID, pattern, pattern)
+	if err != nil {
+		return nil, fmt.Errorf("search users: %w", err)
+	}
+	defer rows.Close()
+
+	var results []model.UserSearchResult
+	for rows.Next() {
+		var r model.UserSearchResult
+		if err := rows.Scan(&r.ID, &r.Name); err != nil {
+			return nil, fmt.Errorf("scan user search: %w", err)
+		}
+		results = append(results, r)
+	}
+	if results == nil {
+		results = []model.UserSearchResult{}
+	}
+	return results, rows.Err()
 }

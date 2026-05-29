@@ -14,6 +14,9 @@ export const API = {
   projectTodosCompleted: (id) => `/api/projects/${id}/todos/completed`,
   projectTodosReorder: (id) => `/api/projects/${id}/todos/reorder`,
   projectWS: (id) => `/api/projects/${id}/ws`,
+  projectMembers: (id) => `/api/projects/${id}/members`,
+  projectMember: (pid, uid) => `/api/projects/${pid}/members/${uid}`,
+  usersSearch: '/api/users/search',
   todo: (id) => `/api/todos/${id}`,
 }
 

@@ -3,7 +3,7 @@
 
   export let todo
   export let expanded = false
-  export let detailForm = { description: '', dueDate: '', priority: 'normal' }
+  export let detailForm = { title: '', description: '', dueDate: '', priority: 'normal' }
   export let dragOverId = ''
   export let dropAfter = false
 
@@ -29,28 +29,40 @@
   on:dragend={() => dispatch('dragend')}
   on:drop={() => dispatch('drop', todo.id)}
 >
-  <button class="check" aria-label="Todo erledigen" on:click|stopPropagation={() => dispatch('toggle', todo)}></button>
+  <button class="check" aria-label="Todo erledigen" on:click|stopPropagation={() => dispatch('toggle', todo)}><span class="check-inner">✓</span></button>
   <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
   <div class="todo-content" on:click={handleToggleExpand}>
     <div class="todo-row">
       <div class="todo-text">
         <span class="todo-title">{todo.title}</span>
-        {#if todo.description}
+        {#if todo.description && !expanded}
           <span class="todo-desc"> · {todo.description}</span>
         {/if}
       </div>
-      <div class="todo-chips">
+      <div class="todo-meta">
         {#if todo.dueDate}
           <span class="meta-chip date-chip">📅 {String(todo.dueDate).slice(0, 10)}</span>
         {/if}
         {#if todo.priority && todo.priority !== 'normal'}
-          <span class="meta-chip prio-{todo.priority}">{todo.priority === 'high' ? '🔴 Hoch' : '🔵 Niedrig'}</span>
+          <span class="meta-chip prio-{todo.priority}">{todo.priority === 'high' ? '↑ Hoch' : '↓ Niedrig'}</span>
         {/if}
+        <span class="expand-chevron" class:open={expanded} aria-hidden="true">›</span>
       </div>
     </div>
     {#if expanded}
       <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
       <div class="todo-detail" on:click|stopPropagation>
+        <label>
+          Titel
+          <input
+            type="text"
+            bind:value={detailForm.title}
+            on:blur={handleSaveDetail}
+            on:keydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            placeholder="Titel…"
+            required
+          />
+        </label>
         <label>
           Beschreibung
           <textarea
@@ -64,10 +76,16 @@
           <label>
             Fällig bis
             <div class="date-picker-wrap">
+              <button type="button" class="date-display" on:click={() => document.getElementById(`dp-${todo.id}`)?.showPicker()}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {detailForm.dueDate || 'Datum wählen…'}
+              </button>
               <input
+                id="dp-{todo.id}"
                 type="date"
                 bind:value={detailForm.dueDate}
                 on:change={handleSaveDetail}
+                class="date-hidden"
               />
               {#if detailForm.dueDate}
                 <button class="date-clear" type="button" aria-label="Datum löschen"
@@ -170,28 +188,52 @@
   .todo-text {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
+    text-overflow: ellipsis;
     font-size: 0.92rem;
   }
 
   .todo-title {
     font-weight: 600;
     color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   .todo-desc {
     color: var(--text-muted);
     font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 2;
   }
 
-  .todo-chips {
+  .todo-meta {
     display: flex;
     align-items: center;
     gap: 5px;
     flex-shrink: 0;
   }
+
+  .expand-chevron {
+    font-size: 1.1rem;
+    color: var(--text-faint);
+    transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), color 0.15s;
+    display: inline-block;
+    transform: rotate(0deg);
+    line-height: 1;
+    margin-left: 2px;
+  }
+  .expand-chevron.open { transform: rotate(90deg); color: var(--text-muted); }
+  .todo:hover .expand-chevron { color: var(--text-muted); }
 
   .meta-chip {
     border-radius: 999px;
@@ -295,27 +337,38 @@
     position: relative;
     display: flex;
     align-items: center;
+    gap: 4px;
   }
 
-  .date-picker-wrap input[type='date'] {
-    padding-right: 34px;
+  .date-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.86rem;
+    text-align: left;
     cursor: pointer;
-    color-scheme: dark;
+    transition: border-color 0.15s, background 0.15s;
   }
-
-  :global([data-theme="light"]) .date-picker-wrap input[type='date'] {
-    color-scheme: light;
+  .date-display:hover {
+    border-color: color-mix(in srgb, var(--accent-color), transparent 50%);
+    background: var(--glass-md);
   }
+  .date-display svg { flex-shrink: 0; color: var(--text-muted); }
 
-  .date-picker-wrap input[type='date']::-webkit-calendar-picker-indicator {
-    opacity: 0.5;
-    cursor: pointer;
-    filter: invert(1);
-  }
-
-  :global([data-theme="light"]) .date-picker-wrap input[type='date']::-webkit-calendar-picker-indicator {
-    filter: none;
-    opacity: 0.6;
+  .date-hidden {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+    left: 0;
+    top: 0;
   }
 
   .date-clear {
@@ -346,23 +399,29 @@
 
   /* Checkbox */
   .check {
-    width: 26px;
-    height: 26px;
-    border: 1.5px solid color-mix(in srgb, var(--accent-color), transparent 45%);
-    border-radius: 8px;
+    width: 22px;
+    height: 22px;
+    border: 1.5px solid var(--border-hover);
+    border-radius: 6px;
     background: transparent;
-    color: var(--accent-color);
+    color: transparent;
     font-weight: 900;
     flex-shrink: 0;
-    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s, color 0.15s;
     display: grid;
     place-items: center;
   }
   .check:hover {
     background: color-mix(in srgb, var(--accent-color), transparent 82%);
     border-color: var(--accent-color);
-    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-color), transparent 55%);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent-color), transparent 60%);
     transform: scale(1.08);
+    color: var(--accent-color);
+  }
+  .check-inner {
+    font-size: 0.7rem;
+    line-height: 1;
+    pointer-events: none;
   }
 
   .drag-handle {

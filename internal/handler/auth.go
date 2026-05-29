@@ -100,18 +100,34 @@ func (h *Handler) me(w http.ResponseWriter, _ *http.Request, user model.User) {
 
 func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request, user model.User) {
 	var req struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
+		Email      string `json:"email"`
+		Name       string `json:"name"`
+		Searchable *bool  `json:"searchable"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	updated, err := h.store.UpdateProfile(r.Context(), user.ID, req.Email, req.Name)
+	searchable := user.Searchable
+	if req.Searchable != nil {
+		searchable = *req.Searchable
+	}
+	updated, err := h.store.UpdateProfile(r.Context(), user.ID, req.Email, req.Name, searchable)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return
 	}
 	respond(w, http.StatusOK, map[string]any{"user": updated})
+}
+
+func (h *Handler) searchUsers(w http.ResponseWriter, r *http.Request, user model.User) {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	results, err := h.store.SearchUsers(r.Context(), q, user.ID)
+	if err != nil {
+		h.handleStoreError(w, err)
+		return
+	}
+	h.logger.Debug("user search", "q", q, "results", len(results), "searcher", user.ID)
+	respond(w, http.StatusOK, map[string]any{"users": results})
 }
 
 func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user model.User) {

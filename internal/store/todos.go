@@ -15,7 +15,7 @@ func (s *Store) ListTodos(ctx context.Context, userID, projectID string) ([]mode
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, project_id, title, description, due_date, priority, completed, position, created_at, updated_at
 FROM todos
-WHERE project_id = ? AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND created_by = ?)
+WHERE project_id = ? AND EXISTS (SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ?)
 ORDER BY position ASC, created_at ASC`, projectID, projectID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list todos: %w", err)
@@ -75,15 +75,20 @@ func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, descri
 		id, projectID, title, strings.TrimSpace(description), due, priority, position, userID, now, now); err != nil {
 		return model.Todo{}, fmt.Errorf("insert todo: %w", err)
 	}
-	// Verify project ownership: touch only if created_by matches.
-	res, err := tx.ExecContext(ctx,
-		`UPDATE projects SET updated_at = ? WHERE id = ? AND created_by = ?`, now, projectID, userID)
-	if err != nil {
-		return model.Todo{}, fmt.Errorf("touch project: %w", err)
+	// Verify membership before committing.
+	var memberCount int
+	if err = tx.QueryRowContext(ctx,
+		`SELECT COUNT(1) FROM project_members WHERE project_id = ? AND user_id = ?`, projectID, userID).Scan(&memberCount); err != nil {
+		err = fmt.Errorf("check project membership: %w", err)
+		return model.Todo{}, err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	if memberCount == 0 {
 		err = ErrNotFound
 		return model.Todo{}, err
+	}
+	if _, err = tx.ExecContext(ctx,
+		`UPDATE projects SET updated_at = ? WHERE id = ?`, now, projectID); err != nil {
+		return model.Todo{}, fmt.Errorf("touch project: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
 		return model.Todo{}, fmt.Errorf("commit create todo tx: %w", err)
@@ -133,7 +138,7 @@ func (s *Store) UpdateTodo(ctx context.Context, userID, todoID string, completed
 	// Include project ownership check in the UPDATE to prevent IDOR.
 	result, err := s.db.ExecContext(ctx,
 		`UPDATE todos SET title = ?, description = ?, due_date = ?, priority = ?, completed = ?, updated_at = ?
-		 WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE created_by = ?)`,
+		 WHERE id = ? AND project_id IN (SELECT project_id FROM project_members WHERE project_id = todos.project_id AND user_id = ?)`,
 		current.Title, current.Description, due, current.Priority, boolToInt(current.Completed), now, todoID, userID)
 	if err != nil {
 		return model.Todo{}, fmt.Errorf("update todo: %w", err)
@@ -151,7 +156,7 @@ func (s *Store) DeleteCompletedTodos(ctx context.Context, userID, projectID stri
 	}
 	_, err := s.db.ExecContext(ctx,
 		`DELETE FROM todos WHERE project_id = ? AND completed = 1
-		 AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND created_by = ?)`,
+		 AND EXISTS (SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ?)`,
 		projectID, projectID, userID)
 	if err != nil {
 		return fmt.Errorf("delete completed todos: %w", err)
@@ -172,13 +177,13 @@ func (s *Store) ReorderTodos(ctx context.Context, userID, projectID string, ids 
 			_ = tx.Rollback()
 		}
 	}()
-	// Verify project ownership before reordering.
-	var ownerCount int
+	// Verify membership before reordering.
+	var memberCount int
 	if err = tx.QueryRowContext(ctx,
-		`SELECT COUNT(1) FROM projects WHERE id = ? AND created_by = ?`, projectID, userID).Scan(&ownerCount); err != nil {
-		return fmt.Errorf("check project ownership: %w", err)
+		`SELECT COUNT(1) FROM project_members WHERE project_id = ? AND user_id = ?`, projectID, userID).Scan(&memberCount); err != nil {
+		return fmt.Errorf("check project membership: %w", err)
 	}
-	if ownerCount == 0 {
+	if memberCount == 0 {
 		err = ErrNotFound
 		return err
 	}
@@ -196,7 +201,7 @@ func (s *Store) ReorderTodos(ctx context.Context, userID, projectID string, ids 
 		}
 	}
 	if _, err = tx.ExecContext(ctx,
-		`UPDATE projects SET updated_at = ? WHERE id = ? AND created_by = ?`, time.Now().UTC(), projectID, userID); err != nil {
+		`UPDATE projects SET updated_at = ? WHERE id = ?`, time.Now().UTC(), projectID); err != nil {
 		return fmt.Errorf("touch reordered project: %w", err)
 	}
 	if err = tx.Commit(); err != nil {

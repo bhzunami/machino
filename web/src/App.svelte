@@ -21,6 +21,8 @@
   import QuickAdd from './components/QuickAdd.svelte'
   import TodoList from './components/TodoList.svelte'
   import ProfilePage from './components/ProfilePage.svelte'
+  import ShareModal from './components/ShareModal.svelte'
+  import EditProjectModal from './components/EditProjectModal.svelte'
 
   let loading = true
   let socket = null
@@ -28,6 +30,8 @@
   let sidebarOpen = false
   let projectMenuId = ''
   let dropdownPos = { top: 0, right: 0 }
+  let shareProject = null
+  let editProject = null
 
   onMount(async () => {
     const cachedProjects = await getCache('projects', [])
@@ -205,8 +209,18 @@
   }
 
   function handleStartEditProject(e) {
-    window.dispatchEvent(new CustomEvent('start-edit-project', { detail: e.detail }))
+    editProject = e.detail
     projectMenuId = ''
+  }
+
+  async function handleSaveEditProject(e) {
+    const { project, form } = e.detail
+    // Optimistic update immediately
+    projects.update(($p) => $p.map((p) => p.id === project.id ? { ...p, ...form } : p))
+    await setCache('projects', get(projects))
+    editProject = null
+    // Persist to server
+    await runOrQueue({ method: 'PUT', path: API.project(project.id), body: form })
   }
 
   async function handleDeleteProject(e) {
@@ -265,8 +279,10 @@
       {#if $currentView === 'profile'}
         <ProfilePage />
       {:else}
-        <QuickAdd on:run-or-queue={(e) => runOrQueue(e.detail)} on:error={(e) => error.set(e.detail)} />
-        <TodoList on:run-or-queue={(e) => runOrQueue(e.detail)} />
+        <div class="content-area">
+          <QuickAdd on:run-or-queue={(e) => runOrQueue(e.detail)} on:error={(e) => error.set(e.detail)} />
+          <TodoList on:run-or-queue={(e) => runOrQueue(e.detail)} />
+        </div>
       {/if}
     </section>
   </main>
@@ -277,10 +293,25 @@
       <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
       <div class="proj-dropdown-portal" style={`top:${dropdownPos.top}px;right:${dropdownPos.right}px`} on:click|stopPropagation>
         <button on:click={() => handleStartEditProject({ detail: menuProject })}>✏️ Bearbeiten</button>
-        <button class="danger" on:click={() => handleDeleteProject({ detail: menuProject })}>🗑 Löschen</button>
+        {#if menuProject.isOwner}
+          <button on:click={() => { shareProject = menuProject; projectMenuId = '' }}>🔗 Teilen</button>
+          <button class="danger" on:click={() => handleDeleteProject({ detail: menuProject })}>🗑 Löschen</button>
+        {/if}
       </div>
     {/if}
   {/if}
+{/if}
+
+{#if shareProject}
+  <ShareModal project={shareProject} on:close={() => (shareProject = null)} />
+{/if}
+
+{#if editProject}
+  <EditProjectModal
+    project={editProject}
+    on:save={handleSaveEditProject}
+    on:close={() => (editProject = null)}
+  />
 {/if}
 
 <style>
@@ -316,8 +347,8 @@
   .workspace {
     display: grid;
     align-content: start;
-    gap: 12px;
-    padding: 16px 20px 40px;
+    gap: 0;
+    padding: 0 0 40px;
     position: relative;
     z-index: 1;
     min-width: 0;
@@ -367,9 +398,17 @@
     padding: 32px;
   }
 
+  .content-area {
+    display: grid;
+    align-content: start;
+    gap: 20px;
+    padding: 28px 28px 40px;
+  }
+
   @media (max-width: 900px) {
     .app-layout { grid-template-columns: 1fr; }
-    .workspace { padding: 12px 14px 32px; }
+    .workspace { padding: 0 0 32px; }
+    .content-area { padding: 18px 16px 32px; }
   }
 
   .sidebar-overlay {

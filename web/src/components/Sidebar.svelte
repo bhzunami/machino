@@ -18,8 +18,6 @@
 
   let showProjectForm = false
   let projectForm = { title: '', description: '', color: DEFAULT_PROJECT_COLOR }
-  let editingProjectId = ''
-  let editProjectForm = { title: '', description: '', color: DEFAULT_PROJECT_COLOR }
 
   async function createProject() {
     if (!projectForm.title.trim()) {
@@ -68,33 +66,7 @@
     const rect = btn.getBoundingClientRect()
     const pos = { top: rect.bottom + 6, right: window.innerWidth - rect.right }
     dispatch('open-project-menu', { projectId, pos })
-    editingProjectId = ''
-  }
-
-  function startEditProject(project) {
-    editingProjectId = project.id
-    editProjectForm = {
-      title: project.title,
-      description: project.description || '',
-      color: project.color || DEFAULT_PROJECT_COLOR,
-    }
-  }
-
-  async function saveEditProject(project) {
-    if (!editProjectForm.title.trim()) return
-    projects.update(($p) =>
-      $p.map((p) => (p.id === project.id ? { ...p, ...editProjectForm } : p)),
-    )
-    await setCache('projects', get(projects))
-    editingProjectId = ''
-    dispatch('run-or-queue', {
-      method: 'PUT',
-      path: API.project(project.id),
-      body: editProjectForm,
-    })
-  }
-
-  async function deleteProject(e, project) {
+  }  async function deleteProject(e, project) {
     e.stopPropagation()
     dispatch('close-project-menu')
     if (!confirm(`Projekt "${project.title}" und alle Todos löschen?`)) return
@@ -158,28 +130,23 @@
             class:active={project.id === $selectedProjectId}
             style={`--project-color:${project.color}`}
           >
-            {#if editingProjectId === project.id}
-              <form class="project-edit-form" on:submit|preventDefault={() => saveEditProject(project)}>
-                <input bind:value={editProjectForm.title} placeholder="Titel" required />
-                <input bind:value={editProjectForm.description} placeholder="Beschreibung" />
-                <div class="edit-form-row">
-                  <input bind:value={editProjectForm.color} type="color" />
-                  <button class="btn" type="submit">Speichern</button>
-                  <button class="btn secondary" type="button" on:click={() => (editingProjectId = '')}>Abbrechen</button>
-                </div>
-              </form>
-            {:else}
-              <button class="project-select" on:click={() => selectProject(project.id)}>
-                <span class="dot"></span>
+            <button class="project-select" on:click={() => selectProject(project.id)}>
+              <span class="dot"></span>
+              <span class="proj-title-wrap">
                 <span>{project.title}</span>
-              </button>
-              <div class="project-actions">
-                <button class="star active" aria-label="Favorit entfernen" on:click={() => setFavorite(project)}>★</button>
-                <div class="proj-menu-wrap">
-                  <button class="proj-dots" aria-label="Optionen" on:click={(e) => openProjectMenu(e, project.id)}>⋯</button>
-                </div>
+                {#if project.memberCount > 1}
+                  <span class="proj-shared-dot" title="{project.isOwner ? 'Geteilt' : 'Geteilt mit dir'}">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </span>
+                {/if}
+              </span>
+            </button>
+            <div class="project-actions">
+              <button class="star active" aria-label="Favorit entfernen" on:click={() => setFavorite(project)}>★</button>
+              <div class="proj-menu-wrap">
+                <button class="proj-dots" aria-label="Optionen" on:click={(e) => openProjectMenu(e, project.id)}>⋯</button>
               </div>
-            {/if}
+            </div>
           </div>
         {/each}
       </section>
@@ -196,36 +163,30 @@
           class:active={project.id === $selectedProjectId}
           style={`--project-color:${project.color}`}
         >
-          {#if editingProjectId === project.id}
-            <form class="project-edit-form" on:submit|preventDefault={() => saveEditProject(project)}>
-              <input bind:value={editProjectForm.title} placeholder="Titel" required />
-              <input bind:value={editProjectForm.description} placeholder="Beschreibung" />
-              <div class="edit-form-row">
-                <input bind:value={editProjectForm.color} type="color" />
-                <button class="btn" type="submit">Speichern</button>
-                <button class="btn secondary" type="button" on:click={() => (editingProjectId = '')}>Abbrechen</button>
-              </div>
-            </form>
-          {:else}
-            <button class="project-select" on:click={() => selectProject(project.id)}>
-              <span class="dot"></span>
+          <button class="project-select" on:click={() => selectProject(project.id)}>
+            <span class="dot"></span>
+            <span class="proj-title-wrap">
               <span>{project.title}</span>
-            </button>
-            <div class="project-actions">
-              <button class="star" aria-label="Als Favorit markieren" on:click={() => setFavorite(project)}>☆</button>
-              <div class="proj-menu-wrap">
-                <button class="proj-dots" aria-label="Optionen" on:click={(e) => openProjectMenu(e, project.id)}>⋯</button>
-              </div>
+              {#if project.memberCount > 1}
+                <span class="proj-shared-dot" title="{project.isOwner ? 'Geteilt' : 'Geteilt mit dir'}">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </span>
+              {/if}
+            </span>
+          </button>
+          <div class="project-actions">
+            <button class="star" aria-label="Als Favorit markieren" on:click={() => setFavorite(project)}>☆</button>
+            <div class="proj-menu-wrap">
+              <button class="proj-dots" aria-label="Optionen" on:click={(e) => openProjectMenu(e, project.id)}>⋯</button>
             </div>
-          {/if}
+          </div>
         </div>
       {/each}
     </section>
   </nav>
 </aside>
 
-<!-- Portal dropdown is rendered in App.svelte; expose startEditProject for it -->
-<svelte:window on:start-edit-project={(e) => startEditProject(e.detail)} />
+<!-- Portal dropdown is rendered in App.svelte -->
 
 <style>
   .sidebar {
@@ -417,46 +378,8 @@
   .project-item.active .proj-dots { opacity: 1; }
   .proj-dots:hover { color: var(--text); background: var(--glass-md); opacity: 1; }
 
-  .project-edit-form {
-    grid-column: 1 / -1;
-    display: grid;
-    gap: 8px;
-    padding: 10px 12px;
-    background: color-mix(in srgb, var(--project-color, #6366f1), transparent 88%);
-    border: 1px solid color-mix(in srgb, var(--project-color, #6366f1), transparent 70%);
-    border-radius: 12px;
-    margin: 4px 0;
-    animation: slide-down 0.15s ease;
-  }
-
-  .project-edit-form input {
-    border-radius: 8px;
-    padding: 7px 10px;
-    font-size: 0.84rem;
-    background: var(--glass-md);
-    color: var(--text);
-    border-color: var(--border);
-  }
-
-  .edit-form-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .edit-form-row input[type='color'] {
-    width: 32px;
-    height: 32px;
-    padding: 2px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    background: transparent;
-  }
-
   .project-select {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    display: flex;
     align-items: center;
     gap: 10px;
     padding: 9px 6px 9px 10px;
@@ -466,6 +389,8 @@
     font-weight: 600;
     font-size: 0.88rem;
     transition: color 0.15s;
+    min-width: 0;
+    flex: 1;
   }
   .project-item.active .project-select { color: var(--text); }
 
@@ -488,6 +413,28 @@
                 0 0 10px color-mix(in srgb, var(--project-color, #6366f1), transparent 60%);
     flex-shrink: 0;
     transition: box-shadow 0.2s;
+  }
+
+  .proj-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .proj-title-wrap > span:first-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .proj-shared-dot {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-faint);
+    opacity: 0.7;
   }
 
   @media (max-width: 900px) {
