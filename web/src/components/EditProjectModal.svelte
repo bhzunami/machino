@@ -107,7 +107,7 @@
         </div>
 
         <label class="toggle-row" for="ep-move-done">
-          <input id="ep-move-done" type="checkbox" bind:checked={form.moveDone} />
+          <input id="ep-move-done" type="checkbox" checked={!form.moveDone} on:change={(e) => form.moveDone = !e.target.checked} />
           <span class="toggle-text">Packlisten-Modus</span>
           <span class="info-icon" title="Abgehakte Todos bleiben in ihrer Kategorie sichtbar, statt nach unten verschoben zu werden.">ℹ</span>
         </label>
