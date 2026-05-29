@@ -1,52 +1,52 @@
 package store
 
 import (
-"context"
-"crypto/rand"
-"database/sql"
-"encoding/hex"
-"errors"
-"fmt"
-"strings"
+	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"strings"
 
-_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite"
 )
 
 var (
-ErrInvalidInput  = errors.New("invalid input")
-ErrNotFound      = errors.New("not found")
-ErrUnauthorized  = errors.New("unauthorized")
-ErrEmailConflict = errors.New("email already exists")
+	ErrInvalidInput  = errors.New("invalid input")
+	ErrNotFound      = errors.New("not found")
+	ErrUnauthorized  = errors.New("unauthorized")
+	ErrEmailConflict = errors.New("email already exists")
 )
 
 type Store struct {
-db *sql.DB
+	db *sql.DB
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
-db, err := sql.Open("sqlite", path)
-if err != nil {
-return nil, fmt.Errorf("open database: %w", err)
-}
-db.SetMaxOpenConns(1)
-if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;"); err != nil {
-_ = db.Close()
-return nil, fmt.Errorf("configure database: %w", err)
-}
-s := &Store{db: db}
-if err := s.migrate(ctx); err != nil {
-_ = db.Close()
-return nil, fmt.Errorf("migrate database: %w", err)
-}
-return s, nil
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return nil, fmt.Errorf("open database: %w", err)
+	}
+	db.SetMaxOpenConns(1)
+	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;"); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("configure database: %w", err)
+	}
+	s := &Store{db: db}
+	if err := s.migrate(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("migrate database: %w", err)
+	}
+	return s, nil
 }
 
 func (s *Store) Close() error {
-return s.db.Close()
+	return s.db.Close()
 }
 
 func (s *Store) migrate(ctx context.Context) error {
-_, err := s.db.ExecContext(ctx, `
+	_, err := s.db.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS users (
 id TEXT PRIMARY KEY,
 email TEXT NOT NULL UNIQUE,
@@ -70,6 +70,7 @@ id TEXT PRIMARY KEY,
 title TEXT NOT NULL,
 description TEXT NOT NULL DEFAULT '',
 color TEXT NOT NULL DEFAULT '#4f46e5',
+move_done INTEGER NOT NULL DEFAULT 1,
 created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 created_at DATETIME NOT NULL,
 updated_at DATETIME NOT NULL
@@ -100,52 +101,73 @@ created_at DATETIME NOT NULL,
 updated_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_todos_project_position ON todos(project_id, position);
+CREATE TABLE IF NOT EXISTS project_columns (
+id TEXT PRIMARY KEY,
+project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+title TEXT NOT NULL,
+position INTEGER NOT NULL,
+created_at DATETIME NOT NULL,
+updated_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_project_columns_project ON project_columns(project_id, position);
 `)
-if err != nil {
-return fmt.Errorf("create schema: %w", err)
-}
-// Backfill project_members for existing projects (idempotent).
-if _, err := s.db.ExecContext(ctx, `
+	if err != nil {
+		return fmt.Errorf("create schema: %w", err)
+	}
+	// Backfill project_members for existing projects (idempotent).
+	if _, err := s.db.ExecContext(ctx, `
 INSERT OR IGNORE INTO project_members (project_id, user_id, role, joined_at)
 SELECT id, created_by, 'owner', created_at FROM projects;
 `); err != nil {
-return fmt.Errorf("backfill project members: %w", err)
-}
-// Add searchable column to users if not present (idempotent).
-if _, err := s.db.ExecContext(ctx,
-	`ALTER TABLE users ADD COLUMN searchable INTEGER NOT NULL DEFAULT 1`,
-); err != nil && !strings.Contains(err.Error(), "duplicate column") {
-	return fmt.Errorf("add searchable column: %w", err)
-}
-return nil
+		return fmt.Errorf("backfill project members: %w", err)
+	}
+	// Add searchable column to users if not present (idempotent).
+	if _, err := s.db.ExecContext(ctx,
+		`ALTER TABLE users ADD COLUMN searchable INTEGER NOT NULL DEFAULT 1`,
+	); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		return fmt.Errorf("add searchable column: %w", err)
+	}
+	// Add column_id to todos if not present (idempotent).
+	if _, err := s.db.ExecContext(ctx,
+		`ALTER TABLE todos ADD COLUMN column_id TEXT REFERENCES project_columns(id) ON DELETE SET NULL`,
+	); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		return fmt.Errorf("add column_id to todos: %w", err)
+	}
+	// Add move_done to projects if not present (idempotent).
+	if _, err := s.db.ExecContext(ctx,
+		`ALTER TABLE projects ADD COLUMN move_done INTEGER NOT NULL DEFAULT 1`,
+	); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		return fmt.Errorf("add move_done to projects: %w", err)
+	}
+	return nil
 }
 
 func NewID() (string, error) {
-var b [16]byte
-if _, err := rand.Read(b[:]); err != nil {
-return "", fmt.Errorf("random id: %w", err)
-}
-return hex.EncodeToString(b[:]), nil
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("random id: %w", err)
+	}
+	return hex.EncodeToString(b[:]), nil
 }
 
 func NormalizeEmail(email string) string {
-return strings.ToLower(strings.TrimSpace(email))
+	return strings.ToLower(strings.TrimSpace(email))
 }
 
 func boolToInt(value bool) int {
-if value {
-return 1
-}
-return 0
+	if value {
+		return 1
+	}
+	return 0
 }
 
 func requireAffected(result sql.Result) error {
-affected, err := result.RowsAffected()
-if err != nil {
-return fmt.Errorf("rows affected: %w", err)
-}
-if affected == 0 {
-return ErrNotFound
-}
-return nil
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

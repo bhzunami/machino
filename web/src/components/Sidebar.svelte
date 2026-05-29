@@ -39,6 +39,7 @@
       title: e.detail.form.title.trim(),
       description: e.detail.form.description.trim(),
     }
+    const columnTitles = e.detail.columns || []
     if (!form.title) {
       projectFormError = 'Projekt-Titel ist Pflicht.'
       return
@@ -58,7 +59,13 @@
       if (!get(online)) {
         await enqueue({ method: 'POST', path: API.projects, body: form })
       } else {
-        await api(API.projects, { method: 'POST', body: form })
+        const created = await api(API.projects, { method: 'POST', body: form })
+        // Create columns sequentially after project is created
+        if (created?.id && columnTitles.length > 0) {
+          for (const title of columnTitles) {
+            await api(API.projectColumns(created.id), { method: 'POST', body: { title } })
+          }
+        }
         dispatch('reload-projects')
       }
       showProjectForm = false
@@ -152,6 +159,11 @@
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                   </span>
                 {/if}
+                {#if project.moveDone === false}
+                  <span class="proj-packlist-dot" title="Packlisten-Modus">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
+                  </span>
+                {/if}
               </span>
             </button>
             <div class="project-actions">
@@ -183,6 +195,11 @@
               {#if project.memberCount > 1}
                 <span class="proj-shared-dot" title="{project.isOwner ? 'Geteilt' : 'Geteilt mit dir'}">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </span>
+              {/if}
+              {#if project.moveDone === false}
+                <span class="proj-packlist-dot" title="Packlisten-Modus">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
                 </span>
               {/if}
             </span>
@@ -443,6 +460,14 @@
     align-items: center;
     color: var(--text-faint);
     opacity: 0.7;
+  }
+
+  .proj-packlist-dot {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    color: color-mix(in srgb, #f59e0b, transparent 10%);
+    opacity: 0.72;
   }
 
   @media (max-width: 900px) {

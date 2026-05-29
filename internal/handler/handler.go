@@ -69,11 +69,16 @@ func (h *Handler) Router(staticDir string) http.Handler {
 	api.HandleFunc("/projects/{projectID}/todos", h.auth(h.createTodo)).Methods(http.MethodPost)
 	api.HandleFunc("/projects/{projectID}/todos/completed", h.auth(h.deleteCompletedTodos)).Methods(http.MethodDelete)
 	api.HandleFunc("/projects/{projectID}/todos/reorder", h.auth(h.reorderTodos)).Methods(http.MethodPut)
+	api.HandleFunc("/projects/{projectID}/columns", h.auth(h.listColumns)).Methods(http.MethodGet)
+	api.HandleFunc("/projects/{projectID}/columns", h.auth(h.createColumn)).Methods(http.MethodPost)
+	api.HandleFunc("/projects/{projectID}/columns/reorder", h.auth(h.reorderColumns)).Methods(http.MethodPut)
 	api.HandleFunc("/projects/{projectID}/ws", h.auth(h.projectWS)).Methods(http.MethodGet)
 	api.HandleFunc("/projects/{projectID}/members", h.auth(h.listMembers)).Methods(http.MethodGet)
 	api.HandleFunc("/projects/{projectID}/members", h.auth(h.addMember)).Methods(http.MethodPost)
 	api.HandleFunc("/projects/{projectID}/members/{memberUserID}", h.auth(h.removeMember)).Methods(http.MethodDelete)
 	api.HandleFunc("/todos/{todoID}", h.auth(h.updateTodo)).Methods(http.MethodPatch)
+	api.HandleFunc("/columns/{columnID}", h.auth(h.updateColumn)).Methods(http.MethodPatch)
+	api.HandleFunc("/columns/{columnID}", h.auth(h.deleteColumn)).Methods(http.MethodDelete)
 
 	if staticDir != "" {
 		r.PathPrefix("/").Handler(spaFileServer(staticDir))

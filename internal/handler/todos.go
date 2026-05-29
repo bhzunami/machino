@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bhzunami/machino/internal/model"
+	"github.com/bhzunami/machino/internal/store"
 
 	"github.com/gorilla/mux"
 )
@@ -25,6 +26,7 @@ func (h *Handler) createTodo(w http.ResponseWriter, r *http.Request, user model.
 		Description string  `json:"description"`
 		DueDate     *string `json:"dueDate"`
 		Priority    string  `json:"priority"`
+		ColumnID    *string `json:"columnId"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -34,7 +36,7 @@ func (h *Handler) createTodo(w http.ResponseWriter, r *http.Request, user model.
 		return
 	}
 	projectID := mux.Vars(r)["projectID"]
-	todo, err := h.store.CreateTodo(r.Context(), user.ID, projectID, req.Title, req.Description, req.Priority, dueDate)
+	todo, err := h.store.CreateTodo(r.Context(), user.ID, projectID, req.Title, req.Description, req.Priority, dueDate, req.ColumnID)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return
@@ -50,6 +52,8 @@ func (h *Handler) updateTodo(w http.ResponseWriter, r *http.Request, user model.
 		Description *string `json:"description"`
 		DueDate     *string `json:"dueDate"`
 		Priority    *string `json:"priority"`
+		ColumnID    *string `json:"columnId"`
+		ClearColumn bool    `json:"clearColumn"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -62,7 +66,11 @@ func (h *Handler) updateTodo(w http.ResponseWriter, r *http.Request, user model.
 		}
 		duePtr = &due
 	}
-	todo, err := h.store.UpdateTodo(r.Context(), user.ID, mux.Vars(r)["todoID"], req.Completed, req.Title, req.Description, req.Priority, duePtr)
+	var colUpdate *store.ColumnUpdate
+	if req.ColumnID != nil || req.ClearColumn {
+		colUpdate = &store.ColumnUpdate{Set: true, Val: req.ColumnID}
+	}
+	todo, err := h.store.UpdateTodo(r.Context(), user.ID, mux.Vars(r)["todoID"], req.Completed, req.Title, req.Description, req.Priority, duePtr, colUpdate)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return

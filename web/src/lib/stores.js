@@ -3,6 +3,7 @@ import { writable, derived } from 'svelte/store'
 export const user = writable(null)
 export const projects = writable([])
 export const todos = writable([])
+export const columns = writable([])
 export const selectedProjectId = writable('')
 export const online = writable(typeof navigator !== 'undefined' ? navigator.onLine : true)
 export const currentView = writable('todos')

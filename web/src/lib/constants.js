@@ -13,11 +13,14 @@ export const API = {
   projectTodos: (id) => `/api/projects/${id}/todos`,
   projectTodosCompleted: (id) => `/api/projects/${id}/todos/completed`,
   projectTodosReorder: (id) => `/api/projects/${id}/todos/reorder`,
+  projectColumns: (id) => `/api/projects/${id}/columns`,
+  projectColumnsReorder: (id) => `/api/projects/${id}/columns/reorder`,
   projectWS: (id) => `/api/projects/${id}/ws`,
   projectMembers: (id) => `/api/projects/${id}/members`,
   projectMember: (pid, uid) => `/api/projects/${pid}/members/${uid}`,
   usersSearch: '/api/users/search',
   todo: (id) => `/api/todos/${id}`,
+  column: (id) => `/api/columns/${id}`,
 }
 
 export const PRIORITY = { HIGH: 'high', NORMAL: 'normal', LOW: 'low' }
