@@ -2,8 +2,9 @@ package mailer
 
 import (
 	"fmt"
-	"net/smtp"
-	"strings"
+	"strconv"
+
+	mail "github.com/wneessen/go-mail"
 )
 
 // Mailer sends transactional emails via SMTP.
@@ -62,23 +63,39 @@ func (m *Mailer) SendPasswordReset(to, token string) error {
 }
 
 func (m *Mailer) send(to, subject, body string) error {
-	auth := smtp.PlainAuth("", m.username, m.password, m.host)
-	msg := buildMessage(m.from, to, subject, body)
-	addr := m.host + ":" + m.port
-	if err := smtp.SendMail(addr, auth, m.from, []string{to}, []byte(msg)); err != nil {
+	port, err := strconv.Atoi(m.port)
+	if err != nil {
+		return fmt.Errorf("smtp port %q: %w", m.port, err)
+	}
+
+	msg := mail.NewMsg()
+	if err := msg.From(m.from); err != nil {
+		return fmt.Errorf("mail from: %w", err)
+	}
+	if err := msg.To(to); err != nil {
+		return fmt.Errorf("mail to: %w", err)
+	}
+	msg.Subject(subject)
+	msg.SetBodyString(mail.TypeTextPlain, body)
+
+	opts := []mail.Option{
+		mail.WithPort(port),
+		mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithUsername(m.username),
+		mail.WithPassword(m.password),
+	}
+	if port == 465 {
+		opts = append(opts, mail.WithSSL())
+	} else {
+		opts = append(opts, mail.WithTLSPolicy(mail.TLSMandatory))
+	}
+
+	client, err := mail.NewClient(m.host, opts...)
+	if err != nil {
+		return fmt.Errorf("smtp client: %w", err)
+	}
+	if err := client.DialAndSend(msg); err != nil {
 		return fmt.Errorf("smtp send: %w", err)
 	}
 	return nil
-}
-
-func buildMessage(from, to, subject, body string) string {
-	var b strings.Builder
-	b.WriteString("From: " + from + "\r\n")
-	b.WriteString("To: " + to + "\r\n")
-	b.WriteString("Subject: " + subject + "\r\n")
-	b.WriteString("MIME-Version: 1.0\r\n")
-	b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	b.WriteString("\r\n")
-	b.WriteString(body)
-	return b.String()
 }

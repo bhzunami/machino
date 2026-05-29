@@ -73,7 +73,7 @@ cp .env.example .env
 | `LOG_LEVEL` | `info` | `debug` · `info` · `warn` · `error` |
 | `LOG_FORMAT` | `text` | `text` (Entwicklung) · `json` (Produktion) |
 | `SMTP_HOST` | — | SMTP-Server (optional) |
-| `SMTP_PORT` | `587` | SMTP-Port |
+| `SMTP_PORT` | `587` | SMTP-Port (`587` STARTTLS, `465` implizites TLS) |
 | `SMTP_USERNAME` | — | SMTP-Benutzername |
 | `SMTP_PASSWORD` | — | SMTP-Passwort |
 | `SMTP_FROM` | — | Absender-Adresse |
