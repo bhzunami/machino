@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"machino/internal/model"
+	"github.com/bhzunami/machino/internal/model"
 
 	"golang.org/x/crypto/bcrypt"
 )

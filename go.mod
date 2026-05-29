@@ -1,4 +1,4 @@
-module machino
+module github.com/bhzunami/machino
 
 go 1.25.0
 

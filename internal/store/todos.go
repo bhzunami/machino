@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"machino/internal/model"
+	"github.com/bhzunami/machino/internal/model"
 )
 
 func (s *Store) ListTodos(ctx context.Context, userID, projectID string) ([]model.Todo, error) {

@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"machino/internal/handler"
-	"machino/internal/mailer"
-	"machino/internal/realtime"
-	"machino/internal/store"
+	"github.com/bhzunami/machino/internal/handler"
+	"github.com/bhzunami/machino/internal/mailer"
+	"github.com/bhzunami/machino/internal/realtime"
+	"github.com/bhzunami/machino/internal/store"
 )
 
 func main() {

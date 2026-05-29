@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"machino/internal/model"
+	"github.com/bhzunami/machino/internal/model"
 )
 
 func (s *Store) CreateUser(ctx context.Context, email, name, passwordHash string) (model.User, error) {

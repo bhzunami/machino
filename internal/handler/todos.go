@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"machino/internal/model"
+	"github.com/bhzunami/machino/internal/model"
 
 	"github.com/gorilla/mux"
 )

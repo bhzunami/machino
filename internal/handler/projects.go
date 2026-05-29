@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"machino/internal/model"
+	"github.com/bhzunami/machino/internal/model"
 
 	"github.com/gorilla/mux"
 )

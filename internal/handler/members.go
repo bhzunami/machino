@@ -6,7 +6,7 @@ import (
 "net/http"
 
 "github.com/gorilla/mux"
-"machino/internal/model"
+"github.com/bhzunami/machino/internal/model"
 )
 
 func (h *Handler) listMembers(w http.ResponseWriter, r *http.Request, user model.User) {

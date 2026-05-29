@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"machino/internal/mailer"
-	"machino/internal/model"
-	"machino/internal/realtime"
-	"machino/internal/store"
+	"github.com/bhzunami/machino/internal/mailer"
+	"github.com/bhzunami/machino/internal/model"
+	"github.com/bhzunami/machino/internal/realtime"
+	"github.com/bhzunami/machino/internal/store"
 
 	"github.com/gorilla/mux"
 )
