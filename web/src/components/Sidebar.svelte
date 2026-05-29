@@ -60,11 +60,15 @@
         await enqueue({ method: 'POST', path: API.projects, body: form })
       } else {
         const created = await api(API.projects, { method: 'POST', body: form })
-        // Create columns sequentially after project is created
-        if (created?.id && columnTitles.length > 0) {
+        const createdProject = created?.project
+        if (createdProject?.id && columnTitles.length > 0) {
           for (const title of columnTitles) {
-            await api(API.projectColumns(created.id), { method: 'POST', body: { title } })
+            await api(API.projectColumns(createdProject.id), { method: 'POST', body: { title } })
           }
+        }
+        if (createdProject?.id) {
+          selectedProjectId.set(createdProject.id)
+          await setCache('selectedProjectId', createdProject.id)
         }
         dispatch('reload-projects')
       }
