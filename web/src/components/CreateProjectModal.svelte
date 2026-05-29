@@ -148,6 +148,9 @@
   }
 
   .field label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
     font-size: 0.78rem;
     font-weight: 700;
     text-transform: uppercase;
