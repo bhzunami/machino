@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import { get } from 'svelte/store'
+  import CreateProjectModal from './CreateProjectModal.svelte'
   import { api } from '../lib/api.js'
   import { enqueue, setCache } from '../lib/db.js'
   import { API, DEFAULT_PROJECT_COLOR } from '../lib/constants.js'
@@ -17,16 +18,35 @@
   export let open = false
 
   let showProjectForm = false
-  let projectForm = { title: '', description: '', color: DEFAULT_PROJECT_COLOR }
+  let projectFormSaving = false
+  let projectFormError = ''
 
-  async function createProject() {
-    if (!projectForm.title.trim()) {
-      dispatch('error', 'Projekt-Titel ist Pflicht.')
+  function openProjectForm() {
+    projectFormError = ''
+    showProjectForm = true
+  }
+
+  function closeProjectForm() {
+    if (projectFormSaving) return
+    projectFormError = ''
+    showProjectForm = false
+  }
+
+  async function createProject(e) {
+    projectFormError = ''
+    const form = {
+      ...e.detail.form,
+      title: e.detail.form.title.trim(),
+      description: e.detail.form.description.trim(),
+    }
+    if (!form.title) {
+      projectFormError = 'Projekt-Titel ist Pflicht.'
       return
     }
+    projectFormSaving = true
     const optimistic = {
       id: `local-${Date.now()}`,
-      ...projectForm,
+      ...form,
       favorite: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -36,15 +56,17 @@
     await setCache('projects', get(projects))
     try {
       if (!get(online)) {
-        await enqueue({ method: 'POST', path: API.projects, body: projectForm })
+        await enqueue({ method: 'POST', path: API.projects, body: form })
       } else {
-        await api(API.projects, { method: 'POST', body: projectForm })
+        await api(API.projects, { method: 'POST', body: form })
         dispatch('reload-projects')
       }
-      projectForm = { title: '', description: '', color: DEFAULT_PROJECT_COLOR }
       showProjectForm = false
     } catch (err) {
+      projectFormError = err.message
       dispatch('error', err.message)
+    } finally {
+      projectFormSaving = false
     }
   }
 
@@ -103,19 +125,10 @@
 
   <div class="sidebar-title">
     <h2>Projekte</h2>
-    <button class="icon-btn" aria-label="Projekt erstellen" on:click={() => (showProjectForm = !showProjectForm)}>
+    <button class="icon-btn" aria-label="Projekt erstellen" on:click={showProjectForm ? closeProjectForm : openProjectForm}>
       {showProjectForm ? '×' : '+'}
     </button>
   </div>
-
-  {#if showProjectForm}
-    <form class="project-form stack" on:submit|preventDefault={createProject}>
-      <label>Titel <input bind:value={projectForm.title} required /></label>
-      <label>Beschreibung <textarea bind:value={projectForm.description}></textarea></label>
-      <label>Farbe <input bind:value={projectForm.color} type="color" /></label>
-      <button class="btn" type="submit">Projekt hinzufügen</button>
-    </form>
-  {/if}
 
   <nav class="projects" aria-label="Projekte">
     {#if $favoriteProjects.length}
@@ -185,6 +198,16 @@
     </section>
   </nav>
 </aside>
+
+{#if showProjectForm}
+  <CreateProjectModal
+    defaultColor={DEFAULT_PROJECT_COLOR}
+    saving={projectFormSaving}
+    error={projectFormError}
+    on:save={createProject}
+    on:close={closeProjectForm}
+  />
+{/if}
 
 <!-- Portal dropdown is rendered in App.svelte -->
 
@@ -277,21 +300,6 @@
     border-color: color-mix(in srgb, var(--accent-color), transparent 55%);
     color: color-mix(in srgb, var(--accent-color), white 30%);
   }
-
-  .project-form {
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 14px;
-    background: var(--glass);
-    animation: slide-down 0.18s cubic-bezier(0.16,1,0.3,1);
-  }
-
-  @keyframes slide-down {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .stack { display: grid; gap: 12px; }
 
   .projects { display: grid; gap: 18px; }
 
