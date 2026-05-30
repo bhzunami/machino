@@ -108,7 +108,6 @@
       </div>
 
       <div class="actions">
-        <button type="button" class="btn secondary" on:click={close} disabled={saving}>Abbrechen</button>
         <button type="submit" class="btn" disabled={saving || !form.title.trim()}>
           {saving ? 'Erstellen…' : 'Erstellen'}
         </button>
