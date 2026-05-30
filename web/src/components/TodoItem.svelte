@@ -49,7 +49,6 @@
         {#if todo.priority && todo.priority !== 'normal'}
           <span class="prio-dot prio-{todo.priority}" title={todo.priority === 'high' ? 'Hoch' : 'Niedrig'}></span>
         {/if}
-        <span class="edit-icon" aria-hidden="true">Bearbeiten</span>
       </div>
     </div>
   </div>
@@ -189,17 +188,6 @@
     gap: 5px;
     flex-shrink: 0;
   }
-
-  .edit-icon {
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-    opacity: 0;
-    transition: opacity 0.15s, color 0.15s;
-  }
-  .todo:hover .edit-icon { opacity: 1; color: var(--text-muted); }
 
   .meta-chip {
     border-radius: 999px;
