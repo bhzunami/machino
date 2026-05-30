@@ -258,12 +258,13 @@
 
   .btn.danger {
     background: transparent;
-    border: 1px solid rgba(248,113,113,0.35);
+    border: 1px solid rgba(248,113,113,0.45);
     color: #f87171;
-    transition: background 0.12s, border-color 0.12s;
+    box-shadow: none;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s, background 0.12s, border-color 0.12s;
   }
-  .btn.danger:hover { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.6); }
-  .btn.danger.confirm { background: rgba(248,113,113,0.15); border-color: #f87171; font-weight: 700; }
+  .btn.danger:hover { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.7); box-shadow: none; transform: translateY(-1px); }
+  .btn.danger.confirm { background: rgba(248,113,113,0.15); border-color: #f87171; }
 
   @media (max-width: 560px) {
     .field-grid { grid-template-columns: 1fr; }
