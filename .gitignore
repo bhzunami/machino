@@ -47,3 +47,5 @@ pnpm-debug.log*
 /tmp/
 tmp/
 machino.db
+machino.db-shm
+machino.db-wal
