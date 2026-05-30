@@ -1,5 +1,16 @@
-const cacheName = 'machino-shell-v1'
-const shellFiles = ['/', '/manifest.webmanifest']
+const cacheName = 'machino-shell-v6'
+const shellFiles = [
+  '/',
+  '/manifest.webmanifest',
+  '/favicon.png',
+  '/logo-dark.png',
+  '/logo-white.png',
+  '/apple-touch-icon.png',
+  '/pwa-192.png',
+  '/pwa-512.png',
+  '/maskable-192.png',
+  '/maskable-512.png',
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(shellFiles)))

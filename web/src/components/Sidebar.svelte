@@ -11,6 +11,7 @@
     online,
     favoriteProjects,
     otherProjects,
+    theme,
   } from '../lib/stores.js'
 
   const dispatch = createEventDispatcher()
@@ -125,12 +126,9 @@
 
 <aside class="sidebar" class:open>
   <div class="brand">
-    <div class="brand-mark">
-      <span class="brand-dot"></span>
-      <span class="brand-dot"></span>
-      <span class="brand-dot"></span>
+    <div class="brand-logo-wrap">
+      <img class="brand-logo" src={$theme === 'light' ? '/logo-white.png' : '/logo-dark.png'} alt="Machino" />
     </div>
-    <span class="brand-name">Mach I No</span>
     <span class:offline={!$online} class="status-badge">{$online ? 'Online' : 'Offline'}</span>
   </div>
 
@@ -256,32 +254,22 @@
     gap: 12px;
   }
 
-  .brand { padding: 4px 4px 2px; }
+  .brand { padding: 0 4px 2px; }
   .sidebar-title { padding: 2px 10px 2px 4px; }
 
-  .brand-mark { display: flex; gap: 7px; align-items: center; }
-
-  .brand-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 999px;
-    animation: dot-pulse 2.4s ease-in-out infinite;
-  }
-  .brand-dot:nth-child(1) { background: #818cf8; animation-delay: 0s; }
-  .brand-dot:nth-child(2) { background: #a78bfa; animation-delay: 0.35s; }
-  .brand-dot:nth-child(3) { background: #38bdf8; animation-delay: 0.7s; }
-
-  @keyframes dot-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.45; transform: scale(0.78); }
-  }
-
-  .brand-name {
+  .brand-logo-wrap {
     flex: 1;
-    font-weight: 800;
-    font-size: 0.92rem;
-    color: var(--text);
-    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .brand-logo {
+    width: 128px;
+    max-width: 100%;
+    height: auto;
+    display: block;
   }
 
   .status-badge {

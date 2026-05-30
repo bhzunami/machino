@@ -10,19 +10,40 @@ export const currentView = writable('todos')
 export const error = writable('')
 export const success = writable('')
 
-// Theme store — persisted in localStorage, applied to <html data-theme>
+// Theme store — defaults to the visitor's OS/browser preference and allows manual override.
 function createThemeStore() {
   const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('machino-theme') : null
-  const initial = stored || 'dark'
-  if (typeof document !== 'undefined') document.documentElement.dataset.theme = initial
-  const { subscribe, update } = writable(initial)
+  const storedTheme = stored === 'dark' || stored === 'light' ? stored : null
+  const colorScheme = typeof window !== 'undefined'
+    ? window.matchMedia?.('(prefers-color-scheme: dark)')
+    : null
+  const preferredTheme = colorScheme?.matches ? 'dark' : 'light'
+  const initial = storedTheme || preferredTheme
+  let followsSystemTheme = !storedTheme
+
+  function applyTheme(next) {
+    if (typeof document !== 'undefined') document.documentElement.dataset.theme = next
+  }
+
+  applyTheme(initial)
+
+  const { subscribe, set, update } = writable(initial)
+
+  colorScheme?.addEventListener?.('change', event => {
+    if (!followsSystemTheme) return
+    const next = event.matches ? 'dark' : 'light'
+    applyTheme(next)
+    set(next)
+  })
+
   return {
     subscribe,
     toggle() {
+      followsSystemTheme = false
       update(current => {
         const next = current === 'dark' ? 'light' : 'dark'
         if (typeof localStorage !== 'undefined') localStorage.setItem('machino-theme', next)
-        if (typeof document !== 'undefined') document.documentElement.dataset.theme = next
+        applyTheme(next)
         return next
       })
     },

@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte'
   import { api } from '../lib/api.js'
   import { API } from '../lib/constants.js'
+  import { theme } from '../lib/stores.js'
 
   const dispatch = createEventDispatcher()
 
@@ -73,11 +74,7 @@
     <div class="visual-bg"></div>
     <div class="visual-grid"></div>
     <div class="visual-content">
-      <div class="brand-mark">
-        <span class="brand-dot"></span>
-        <span class="brand-dot"></span>
-        <span class="brand-dot"></span>
-      </div>
+      <img class="visual-logo" src={$theme === 'light' ? '/logo-white.png' : '/logo-dark.png'} alt="" />
       <h1 class="visual-title">
         <span class="word-mach">Mach</span>
         <span class="word-i">I</span>
@@ -96,12 +93,7 @@
   <section class="auth-form-panel">
     <div class="auth-form-inner">
       <div class="auth-logo">
-        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-          <rect width="36" height="36" rx="10" fill="#4f46e5"/>
-          <path d="M10 24 L18 12 L26 24" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          <circle cx="18" cy="12" r="2.5" fill="#a5b4fc"/>
-        </svg>
-        <span>Mach I No</span>
+        <img class="auth-logo-img" src={$theme === 'light' ? '/logo-white.png' : '/logo-dark.png'} alt="Machino" />
       </div>
 
       {#if authMode === 'reset'}
@@ -224,25 +216,9 @@
     gap: 28px;
   }
 
-  .brand-mark {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-
-  .brand-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-    animation: dot-pulse 2.4s ease-in-out infinite;
-  }
-  .brand-dot:nth-child(1) { background: #818cf8; animation-delay: 0s; }
-  .brand-dot:nth-child(2) { background: #a78bfa; animation-delay: 0.38s; }
-  .brand-dot:nth-child(3) { background: #38bdf8; animation-delay: 0.76s; }
-
-  @keyframes dot-pulse {
-    0%, 100% { opacity: 1;    transform: scale(1); }
-    50%       { opacity: 0.4; transform: scale(0.78); }
+  .visual-logo {
+    width: min(260px, 70%);
+    height: auto;
   }
 
   .visual-title {
@@ -347,11 +323,11 @@
   .auth-logo {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 1.05rem;
-    font-weight: 900;
-    color: var(--text);
-    letter-spacing: -0.04em;
+  }
+
+  .auth-logo-img {
+    width: 124px;
+    height: auto;
   }
 
   .form-header h2 {
