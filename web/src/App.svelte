@@ -112,10 +112,6 @@
     }
   }
 
-  async function handleReloadProjects() {
-    await loadProjects()
-  }
-
   async function selectProject(projectId) {
     selectedProjectId.set(projectId)
     await setCache('selectedProjectId', projectId)
@@ -289,7 +285,7 @@
       on:select-project={(e) => selectProject(e.detail)}
       on:open-project-menu={handleOpenProjectMenu}
       on:run-or-queue={(e) => runOrQueue(e.detail)}
-      on:reload-projects={handleReloadProjects}
+      on:reload-projects={loadProjects}
       on:error={(e) => error.set(e.detail)}
       on:clear-todos={() => todos.set([])}
       on:close-project-menu={() => (projectMenuId = '')}

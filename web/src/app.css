@@ -171,3 +171,75 @@ label {
   border-color: rgba(22,163,74,0.35);
   color: #15803d;
 }
+
+/* ===== Shared Modal Infrastructure ===== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-handle {
+  display: none;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-hover);
+  margin: 10px auto 0;
+  flex-shrink: 0;
+}
+
+.close-btn {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+.close-btn:hover { color: var(--text); background: var(--glass-hover); }
+
+/* Inline feedback messages used inside modals */
+.msg {
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+.msg.error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.msg.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+[data-theme="light"] .msg.error  { color: #dc2626; }
+[data-theme="light"] .msg.success { color: #16a34a; }
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.95) translateY(-8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 560px) {
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal-handle  { display: block; }
+}

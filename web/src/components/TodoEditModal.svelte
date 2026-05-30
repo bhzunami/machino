@@ -90,19 +90,6 @@
 </div>
 
 <style>
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 1rem;
-  }
-
   .modal {
     background: var(--bg-2);
     border: 1px solid var(--border);
@@ -110,26 +97,11 @@
     width: 100%;
     max-width: 440px;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
-    animation: pop-in 0.18s cubic-bezier(0.16,1,0.3,1);
+    animation: pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     flex-direction: column;
     max-height: 90dvh;
     overflow: hidden;
-  }
-
-  @keyframes pop-in {
-    from { opacity: 0; transform: scale(0.95) translateY(-8px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
-  }
-
-  .modal-handle {
-    display: none;
-    width: 36px;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--border-hover);
-    margin: 10px auto 0;
-    flex-shrink: 0;
   }
 
   .modal-header {
@@ -147,30 +119,10 @@
     margin: 0;
   }
 
-  .close-btn {
-    background: var(--glass);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 0.3rem 0.5rem;
-    border-radius: 6px;
-    line-height: 1;
-    transition: color 0.15s, background 0.15s;
-  }
-  .close-btn:hover { color: var(--text); background: var(--glass-hover); }
-
   .msg.error {
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    font-size: 0.85rem;
     margin: 0.75rem 1.5rem 0;
-    background: rgba(239, 68, 68, 0.12);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.25);
     flex-shrink: 0;
   }
-  :global([data-theme="light"]) .msg.error { color: #dc2626; }
 
   form {
     display: flex;
@@ -256,19 +208,12 @@
 
   @media (max-width: 560px) {
     .field-grid { grid-template-columns: 1fr; }
-    .modal-overlay { padding: 0; align-items: flex-end; }
     .modal {
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
       max-width: 100%;
       max-height: 92dvh;
-      animation: slide-up 0.22s cubic-bezier(0.16,1,0.3,1);
+      animation: slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .modal-handle { display: block; }
-  }
-
-  @keyframes slide-up {
-    from { opacity: 0; transform: translateY(24px); }
-    to   { opacity: 1; transform: translateY(0); }
   }
 </style>

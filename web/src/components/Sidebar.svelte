@@ -100,23 +100,6 @@
     const rect = btn.getBoundingClientRect()
     const pos = { top: rect.bottom + 6, right: window.innerWidth - rect.right }
     dispatch('open-project-menu', { projectId, pos })
-  }  async function deleteProject(e, project) {
-    e.stopPropagation()
-    dispatch('close-project-menu')
-    if (!confirm(`Projekt "${project.title}" und alle Todos löschen?`)) return
-    const $selectedProjectId = get(selectedProjectId)
-    if ($selectedProjectId === project.id) {
-      const next = get(projects).find((p) => p.id !== project.id)
-      selectedProjectId.set(next?.id || '')
-      dispatch('clear-todos')
-    }
-    projects.update(($p) => $p.filter((p) => p.id !== project.id))
-    await setCache('projects', get(projects))
-    dispatch('run-or-queue', {
-      method: 'DELETE',
-      path: API.project(project.id),
-      body: null,
-    })
   }
 
   function selectProject(projectId) {

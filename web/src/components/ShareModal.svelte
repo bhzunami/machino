@@ -1,131 +1,113 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
-  import { API } from '../lib/constants.js';
+  import { createEventDispatcher, onMount } from 'svelte'
+  import { api, ApiError } from '../lib/api.js'
+  import { API } from '../lib/constants.js'
 
-  export let project = null;
+  export let project = null
 
-  const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher()
 
-  let members = [];
-  let email = '';
-  let loading = false;
-  let error = '';
-  let successMsg = '';
+  let members = []
+  let email = ''
+  let loading = false
+  let error = ''
+  let successMsg = ''
 
-  // Typeahead state
-  let searchQuery = '';
-  let searchResults = [];
-  let searchLoading = false;
-  let selectedUser = null; // { id, name } chosen from dropdown
-  let searchDebounce = null;
-  let showDropdown = false;
+  let searchQuery = ''
+  let searchResults = []
+  let searchLoading = false
+  let selectedUser = null
+  let searchDebounce = null
+  let showDropdown = false
 
-  $: isOwner = project?.isOwner;
+  $: isOwner = project?.isOwner
 
   onMount(() => {
-    if (project) loadMembers();
-  });
+    if (project) loadMembers()
+  })
 
   async function loadMembers() {
     try {
-      const res = await fetch(API.projectMembers(project.id), { credentials: 'include' });
-      if (res.ok) members = (await res.json()) ?? [];
-    } catch (e) {
-      console.error('load members', e);
+      const data = await api(API.projectMembers(project.id))
+      members = data ?? []
+    } catch {
+      // non-critical — member list stays empty
     }
   }
 
   function onSearchInput() {
-    selectedUser = null;
-    clearTimeout(searchDebounce);
+    selectedUser = null
+    clearTimeout(searchDebounce)
     if (searchQuery.length < 3) {
-      searchResults = [];
-      showDropdown = false;
-      return;
+      searchResults = []
+      showDropdown = false
+      return
     }
     searchDebounce = setTimeout(async () => {
-      searchLoading = true;
+      searchLoading = true
       try {
-        const res = await fetch(`${API.usersSearch}?q=${encodeURIComponent(searchQuery)}`, {
-          credentials: 'include',
-        });
-        if (res.ok) {
-          const data = await res.json();
-          searchResults = data.users ?? [];
-          showDropdown = searchResults.length > 0;
-        }
-      } catch (e) {
-        console.error('user search', e);
+        const data = await api(`${API.usersSearch}?q=${encodeURIComponent(searchQuery)}`)
+        searchResults = data.users ?? []
+        showDropdown = searchResults.length > 0
+      } catch {
+        searchResults = []
+        showDropdown = false
       } finally {
-        searchLoading = false;
+        searchLoading = false
       }
-    }, 250);
+    }, 250)
   }
 
   function pickUser(u) {
-    selectedUser = u;
-    searchQuery = u.name;
-    showDropdown = false;
-    searchResults = [];
+    selectedUser = u
+    searchQuery = u.name
+    showDropdown = false
+    searchResults = []
   }
 
   async function invite() {
-    error = '';
-    successMsg = '';
-    // If user was picked from typeahead, use their name as label; always send email field
-    // (server accepts email OR we can extend to accept userId — we send email for backward compat)
-    // If user typed a raw email without picking, send that directly.
+    error = ''
+    successMsg = ''
     const payload = selectedUser
       ? { userId: selectedUser.id }
-      : { email: email.trim().toLowerCase() };
+      : { email: email.trim().toLowerCase() }
 
-    const hasValue = selectedUser || email.trim();
-    if (!hasValue) return;
-    loading = true;
+    const hasValue = selectedUser || email.trim()
+    if (!hasValue) return
+    loading = true
     try {
-      const res = await fetch(API.projectMembers(project.id), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        const label = selectedUser ? selectedUser.name : email.trim();
-        successMsg = `${label} wurde eingeladen.`;
-        email = '';
-        searchQuery = '';
-        selectedUser = null;
-        await loadMembers();
+      await api(API.projectMembers(project.id), { method: 'POST', body: payload })
+      const label = selectedUser ? selectedUser.name : email.trim()
+      successMsg = `${label} wurde eingeladen.`
+      email = ''
+      searchQuery = ''
+      selectedUser = null
+      await loadMembers()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 404) error = 'Kein Benutzer mit dieser E-Mail gefunden.'
+        else if (err.status === 401) error = 'Nur der Besitzer darf Mitglieder einladen.'
+        else error = err.message || 'Einladung fehlgeschlagen.'
       } else {
-        const body = await res.json().catch(() => ({}));
-        if (res.status === 404) error = 'Kein Benutzer mit dieser E-Mail gefunden.';
-        else if (res.status === 401) error = 'Nur der Besitzer darf Mitglieder einladen.';
-        else error = body.error || 'Einladung fehlgeschlagen.';
+        error = 'Einladung fehlgeschlagen.'
       }
     } finally {
-      loading = false;
+      loading = false
     }
   }
 
   async function removeMember(uid) {
-    error = '';
+    error = ''
     try {
-      const res = await fetch(API.projectMember(project.id, uid), {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        members = members.filter((m) => m.userId !== uid);
-      } else {
-        error = 'Entfernen fehlgeschlagen.';
-      }
-    } catch (e) {
-      error = 'Entfernen fehlgeschlagen.';
+      await api(API.projectMember(project.id, uid), { method: 'DELETE' })
+      members = members.filter((m) => m.userId !== uid)
+    } catch {
+      error = 'Entfernen fehlgeschlagen.'
     }
   }
 
   function close() {
-    dispatch('close');
+    dispatch('close')
   }
 </script>
 
@@ -212,19 +194,6 @@
 </div>
 
 <style>
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 1rem;
-  }
-
   .modal {
     background: var(--bg-2);
     border: 1px solid var(--border);
@@ -235,12 +204,7 @@
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
-    animation: pop-in 0.18s cubic-bezier(0.16,1,0.3,1);
-  }
-
-  @keyframes pop-in {
-    from { opacity: 0; transform: scale(0.95) translateY(-8px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
+    animation: pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .modal-header {
@@ -257,37 +221,8 @@
     margin: 0;
   }
 
-  .close-btn {
-    background: var(--glass);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 0.3rem 0.5rem;
-    border-radius: 6px;
-    line-height: 1;
-    transition: color 0.15s, background 0.15s;
-  }
-  .close-btn:hover { color: var(--text); background: var(--glass-hover); }
-
-  .msg {
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    margin-bottom: 0.75rem;
-  }
-  .msg.error {
-    background: rgba(239, 68, 68, 0.12);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.25);
-  }
-  .msg.success {
-    background: rgba(34, 197, 94, 0.12);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.25);
-  }
-  :global([data-theme="light"]) .msg.error { color: #dc2626; }
-  :global([data-theme="light"]) .msg.success { color: #16a34a; }
+  /* Override shared .msg spacing for this modal's block layout */
+  .msg { margin-bottom: 0.75rem; }
 
   /* Invite form */
   .invite-form {

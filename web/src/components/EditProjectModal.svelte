@@ -1,18 +1,17 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
-  import { columns, selectedProjectId } from '../lib/stores.js';
-  import { API } from '../lib/constants.js';
+  import { createEventDispatcher } from 'svelte'
+  import { columns, selectedProjectId } from '../lib/stores.js'
+  import { API } from '../lib/constants.js'
 
-  export let project = null;
+  export let project = null
 
-  const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher()
 
-  let form = { title: '', description: '', color: '#4f46e5', moveDone: true };
-  let saving = false;
-  let error = '';
-  let newColumnTitle = '';
-  let editingColumnId = '';
-  let editingColumnTitle = '';
+  let form = { title: '', description: '', color: '#4f46e5', moveDone: true }
+  let error = ''
+  let newColumnTitle = ''
+  let editingColumnId = ''
+  let editingColumnTitle = ''
 
   $: if (project) {
     form = {
@@ -20,55 +19,54 @@
       description: project.description || '',
       color: project.color || '#4f46e5',
       moveDone: project.moveDone !== false,
-    };
+    }
   }
 
-  async function save() {
-    error = '';
-    if (!form.title.trim()) { error = 'Titel ist Pflicht.'; return; }
-    saving = true;
-    dispatch('save', { project, form: { ...form, title: form.title.trim(), description: form.description.trim() } });
+  function save() {
+    error = ''
+    if (!form.title.trim()) { error = 'Titel ist Pflicht.'; return }
+    dispatch('save', { project, form: { ...form, title: form.title.trim(), description: form.description.trim() } })
   }
 
   function close() {
-    dispatch('close');
+    dispatch('close')
   }
 
   function addColumn() {
-    const title = newColumnTitle.trim();
-    if (!title) return;
-    newColumnTitle = '';
+    const title = newColumnTitle.trim()
+    if (!title) return
+    newColumnTitle = ''
     dispatch('run-or-queue', {
       method: 'POST',
       path: API.projectColumns($selectedProjectId),
       body: { title },
-    });
+    })
   }
 
   function startEditColumn(col) {
-    editingColumnId = col.id;
-    editingColumnTitle = col.title;
+    editingColumnId = col.id
+    editingColumnTitle = col.title
   }
 
   function saveEditColumn(col) {
-    const title = editingColumnTitle.trim();
-    editingColumnId = '';
-    if (!title || title === col.title) return;
-    columns.update($cols => $cols.map(c => c.id === col.id ? { ...c, title } : c));
+    const title = editingColumnTitle.trim()
+    editingColumnId = ''
+    if (!title || title === col.title) return
+    columns.update($cols => $cols.map(c => c.id === col.id ? { ...c, title } : c))
     dispatch('run-or-queue', {
       method: 'PATCH',
       path: API.column(col.id),
       body: { title },
-    });
+    })
   }
 
   function deleteColumn(col) {
-    columns.update($cols => $cols.filter(c => c.id !== col.id));
+    columns.update($cols => $cols.filter(c => c.id !== col.id))
     dispatch('run-or-queue', {
       method: 'DELETE',
       path: API.column(col.id),
       body: null,
-    });
+    })
   }
 </script>
 
@@ -152,27 +150,12 @@
 
     <div class="actions">
       <button type="button" class="btn secondary" on:click={close}>Abbrechen</button>
-      <button type="button" class="btn" disabled={saving || !form.title.trim()} on:click={save}>
-        {saving ? 'Speichern…' : 'Speichern'}
-      </button>
+      <button type="button" class="btn" disabled={!form.title.trim()} on:click={save}>Speichern</button>
     </div>
   </div>
 </div>
 
 <style>
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 1rem;
-  }
-
   .modal {
     background: var(--bg-2);
     border: 1px solid var(--border);
@@ -180,26 +163,11 @@
     width: 100%;
     max-width: 440px;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
-    animation: pop-in 0.18s cubic-bezier(0.16,1,0.3,1);
+    animation: pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     flex-direction: column;
     max-height: 90dvh;
     overflow: hidden;
-  }
-
-  @keyframes pop-in {
-    from { opacity: 0; transform: scale(0.95) translateY(-8px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
-  }
-
-  .modal-handle {
-    display: none;
-    width: 36px;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--border-hover);
-    margin: 10px auto 0;
-    flex-shrink: 0;
   }
 
   .modal-header {
@@ -210,17 +178,6 @@
     flex-shrink: 0;
   }
 
-  .msg.error {
-    margin: 0.75rem 1.5rem 0;
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    background: rgba(239, 68, 68, 0.12);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    flex-shrink: 0;
-  }
-
   h2 {
     font-size: 1.1rem;
     font-weight: 700;
@@ -228,29 +185,10 @@
     margin: 0;
   }
 
-  .close-btn {
-    background: var(--glass);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 0.3rem 0.5rem;
-    border-radius: 6px;
-    line-height: 1;
-    transition: color 0.15s, background 0.15s;
-  }
-  .close-btn:hover { color: var(--text); background: var(--glass-hover); }
-
   .msg.error {
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    margin-bottom: 0.75rem;
-    background: rgba(239, 68, 68, 0.12);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    margin: 0.75rem 1.5rem 0;
+    flex-shrink: 0;
   }
-  :global([data-theme="light"]) .msg.error { color: #dc2626; }
 
   .modal-body {
     overflow-y: auto;
@@ -390,9 +328,7 @@
     border-top: 1px solid var(--border);
   }
 
-  .columns-header {
-    margin-bottom: 0.65rem;
-  }
+  .columns-header { margin-bottom: 0.65rem; }
 
   .columns-label {
     font-size: 0.78rem;
@@ -450,7 +386,7 @@
     line-height: 1;
     transition: color 0.12s, background 0.12s;
   }
-  .column-delete-btn:hover { color: #f87171; background: rgba(248,113,113,0.1); }
+  .column-delete-btn:hover { color: #f87171; background: rgba(248, 113, 113, 0.1); }
 
   .column-add-form {
     display: flex;
@@ -487,18 +423,13 @@
   .btn-add-col:not(:disabled):hover { opacity: 0.85; }
 
   @media (max-width: 560px) {
-    .modal-overlay { padding: 0; align-items: flex-end; }
     .modal {
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
       max-width: 100%;
       max-height: 92dvh;
-      animation: slide-up 0.22s cubic-bezier(0.16,1,0.3,1);
+      animation: slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .modal-handle { display: block; }
-  }
-  @keyframes slide-up {
-    from { opacity: 0; transform: translateY(24px); }
-    to   { opacity: 1; transform: translateY(0); }
   }
 </style>
+
