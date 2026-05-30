@@ -71,13 +71,13 @@
     const body = {
       title,
       description: form.description || null,
-      dueDate: form.dueDate || null,
       priority: form.priority,
+      ...(form.dueDate ? { dueDate: form.dueDate } : { clearDueDate: true }),
     }
     todos.update(($todos) =>
       $todos.map((t) =>
         t.id === todoId
-          ? { ...t, title: body.title, description: body.description, dueDate: body.dueDate, priority: body.priority }
+          ? { ...t, title: body.title, description: body.description, dueDate: form.dueDate || null, priority: body.priority }
           : t,
       ),
     )
