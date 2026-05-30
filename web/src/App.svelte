@@ -23,6 +23,7 @@
   import TodoList from './components/TodoList.svelte'
   import ProfilePage from './components/ProfilePage.svelte'
   import AdminPage from './components/AdminPage.svelte'
+  import SetupWizard from './components/SetupWizard.svelte'
   import ShareModal from './components/ShareModal.svelte'
   import EditProjectModal from './components/EditProjectModal.svelte'
 
@@ -30,10 +31,13 @@
   let socket = null
   let menuOpen = false
   let sidebarOpen = false
+  let sidebarRef
   let projectMenuId = ''
   let dropdownPos = { top: 0, right: 0 }
   let shareProject = null
   let editProject = null
+  let setupRequired = false
+  let setupDefaults = {}
 
   onMount(async () => {
     const cachedProjects = await getCache('projects', [])
@@ -58,6 +62,12 @@
   async function bootstrap() {
     loading = true
     try {
+      const setup = await api(API.setupStatus)
+      setupRequired = !!setup.setupRequired
+      setupDefaults = setup.settings || {}
+      if (setupRequired) {
+        return
+      }
       const payload = await api(API.me)
       user.set(payload.user)
       await syncQueue()
@@ -72,6 +82,7 @@
   }
 
   async function handleAuthenticated(e) {
+    setupRequired = false
     user.set(e.detail.user)
     await loadProjects()
   }
@@ -261,7 +272,11 @@
     <div class="card loader">Wird geladen...</div>
   </main>
 {:else if !$user}
-  <AuthPage on:authenticated={handleAuthenticated} />
+  {#if setupRequired}
+    <SetupWizard defaults={setupDefaults} on:authenticated={handleAuthenticated} />
+  {:else}
+    <AuthPage registrationEnabled={setupDefaults.registrationEnabled !== false} on:authenticated={handleAuthenticated} />
+  {/if}
 {:else}
   <main class="app-layout" style={`--accent-color:${$selectedProject?.color || '#4f46e5'}`}>
     <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
@@ -269,6 +284,7 @@
       <div class="sidebar-overlay" on:click={() => (sidebarOpen = false)}></div>
     {/if}
     <Sidebar
+      bind:this={sidebarRef}
       open={sidebarOpen}
       on:select-project={(e) => selectProject(e.detail)}
       on:open-project-menu={handleOpenProjectMenu}
@@ -301,7 +317,7 @@
       {:else}
         <div class="content-area">
           <QuickAdd on:run-or-queue={(e) => runOrQueue(e.detail)} on:error={(e) => error.set(e.detail)} />
-          <TodoList on:run-or-queue={(e) => runOrQueue(e.detail)} />
+          <TodoList on:run-or-queue={(e) => runOrQueue(e.detail)} on:new-project={() => { sidebarOpen = true; sidebarRef?.openProjectForm() }} />
         </div>
       {/if}
     </section>

@@ -6,6 +6,8 @@
 
   const dispatch = createEventDispatcher()
 
+  export let registrationEnabled = true
+
   let authMode = 'login'
   let loginForm = { email: '', password: '', name: '' }
   let resetForm = { email: '', token: '', password: '' }
@@ -70,26 +72,6 @@
 </script>
 
 <main class="auth-layout">
-  <section class="auth-visual" aria-hidden="true">
-    <div class="visual-bg"></div>
-    <div class="visual-grid"></div>
-    <div class="visual-content">
-      <img class="visual-logo" src={$theme === 'light' ? '/logo-white.png' : '/logo-dark.png'} alt="" />
-      <h1 class="visual-title">
-        <span class="word-mach">Mach</span>
-        <span class="word-i">I</span>
-        <span class="word-no">No</span>
-      </h1>
-      <p class="visual-sub">Deine Aufgaben. Immer dabei.</p>
-      <div class="floating-cards">
-        <div class="fc fc1"><span class="fc-check">✓</span> Präsentation vorbereiten</div>
-        <div class="fc fc2"><span class="fc-dot high"></span> API deployen <span class="fc-date">heute</span></div>
-        <div class="fc fc3"><span class="fc-dot"></span> Team Meeting planen</div>
-        <div class="fc fc4"><span class="fc-check">✓</span> Design Review</div>
-      </div>
-    </div>
-  </section>
-
   <section class="auth-form-panel">
     <div class="auth-form-inner">
       <div class="auth-logo">
@@ -149,9 +131,11 @@
 
         <div class="auth-footer">
           {#if authMode === 'login'}
-            <button class="link-btn" on:click={() => { authMode = 'register'; error = ''; success = '' }}>
-              Noch kein Account? <strong>Registrieren</strong>
-            </button>
+            {#if registrationEnabled}
+              <button class="link-btn" on:click={() => { authMode = 'register'; error = ''; success = '' }}>
+                Noch kein Account? <strong>Registrieren</strong>
+              </button>
+            {/if}
             <button class="link-btn muted" on:click={() => { authMode = 'reset'; error = ''; success = '' }}>
               Passwort vergessen?
             </button>
@@ -168,154 +152,26 @@
 
 <style>
   .auth-layout {
-    display: grid;
-    grid-template-columns: 1fr 460px;
+    display: flex;
     min-height: 100vh;
-    background: var(--bg);
-  }
-
-  /* === Visual Side === */
-  .auth-visual {
-    position: relative;
-    overflow: hidden;
-    background: var(--bg-2);
-  }
-
-  .visual-bg {
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.28) 0%, transparent 58%),
-      radial-gradient(ellipse at 78% 12%, rgba(139,92,246,0.22) 0%, transparent 48%),
-      radial-gradient(ellipse at 60% 82%, rgba(56,189,248,0.14) 0%, transparent 48%);
-    animation: aurora 9s ease-in-out infinite alternate;
-  }
-
-  @keyframes aurora {
-    0%   { opacity: 1;   transform: scale(1)    rotate(0deg); }
-    100% { opacity: 0.75; transform: scale(1.06) rotate(2deg); }
-  }
-
-  .visual-grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-    background-size: 48px 48px;
-  }
-
-  .visual-content {
-    position: relative;
-    z-index: 1;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 64px 60px;
-    gap: 28px;
-  }
-
-  .visual-logo {
-    width: min(260px, 70%);
-    height: auto;
-  }
-
-  .visual-title {
-    margin: 0;
-    font-size: clamp(3.2rem, 6vw, 5.5rem);
-    font-weight: 900;
-    letter-spacing: -0.04em;
-    line-height: 0.92;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .word-mach { color: var(--text); }
-  .word-i    { color: #818cf8; font-style: italic; margin-left: 0.12em; }
-  .word-no   { color: var(--text-faint); }
-
-  .visual-sub {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 1rem;
-    font-weight: 400;
-  }
-
-  .floating-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    margin-top: 16px;
-  }
-
-  .fc {
-    display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 11px 15px;
-    border-radius: 14px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    backdrop-filter: blur(12px);
-    color: var(--text-muted);
-    font-size: 0.86rem;
-    font-weight: 500;
-    animation: float-in 0.55s cubic-bezier(0.16,1,0.3,1) both;
-  }
-  .fc1 { animation-delay: 0.15s; }
-  .fc2 { animation-delay: 0.28s; }
-  .fc3 { animation-delay: 0.41s; }
-  .fc4 { animation-delay: 0.54s; }
-
-  @keyframes float-in {
-    from { opacity: 0; transform: translateX(-18px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-
-  .fc-check {
-    width: 22px;
-    height: 22px;
-    border-radius: 7px;
-    background: linear-gradient(135deg, #4ade80, #16a34a);
-    display: grid;
-    place-items: center;
-    font-size: 0.68rem;
-    color: #fff;
-    font-weight: 900;
-    flex-shrink: 0;
-    box-shadow: 0 0 10px rgba(74,222,128,0.4);
-  }
-
-  .fc-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: var(--text-faint);
-    flex-shrink: 0;
-  }
-  .fc-dot.high { background: #f87171; box-shadow: 0 0 8px rgba(248,113,113,0.6); }
-
-  .fc-date {
-    margin-left: auto;
-    font-size: 0.72rem;
-    color: var(--text-faint);
+    justify-content: center;
+    background: var(--bg);
+    padding: 32px 16px;
   }
 
   /* === Form Side === */
   .auth-form-panel {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 100%;
+    max-width: 420px;
     background: var(--bg-3);
-    border-left: 1px solid var(--border);
+    border: 1px solid var(--border);
+    border-radius: 20px;
     padding: 48px 44px;
   }
 
   .auth-form-inner {
     width: 100%;
-    max-width: 350px;
     display: grid;
     gap: 24px;
   }
@@ -323,10 +179,11 @@
   .auth-logo {
     display: flex;
     align-items: center;
+    justify-content: center;
   }
 
   .auth-logo-img {
-    width: 124px;
+    width: 180px;
     height: auto;
   }
 
@@ -381,11 +238,7 @@
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   }
 
-  @media (max-width: 900px) {
-    .auth-layout { grid-template-columns: 1fr; }
-    .auth-visual { min-height: 260px; }
-    .visual-content { padding: 40px 32px; justify-content: flex-end; }
-    .floating-cards { display: none; }
-    .auth-form-panel { border-left: none; border-top: 1px solid var(--border); }
+  @media (max-width: 500px) {
+    .auth-form-panel { padding: 36px 24px; }
   }
 </style>

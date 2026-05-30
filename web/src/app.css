@@ -160,3 +160,14 @@ label {
   color: #86efac;
   font-size: 0.88rem;
 }
+
+[data-theme="light"] .error {
+  background: rgba(220,38,38,0.08);
+  border-color: rgba(220,38,38,0.28);
+  color: #b91c1c;
+}
+[data-theme="light"] .success {
+  background: rgba(22,163,74,0.1);
+  border-color: rgba(22,163,74,0.35);
+  color: #15803d;
+}

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bhzunami/machino/internal/mailer"
 	"github.com/bhzunami/machino/internal/model"
 
 	"golang.org/x/crypto/bcrypt"
@@ -23,6 +24,25 @@ func validatePassword(password string) bool {
 }
 
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
+	setupRequired, err := h.store.SetupRequired(r.Context())
+	if err != nil {
+		h.handleStoreError(w, err)
+		return
+	}
+	if setupRequired {
+		respondError(w, http.StatusForbidden, "Bitte zuerst das Setup abschließen.")
+		return
+	}
+	settings, err := h.store.AppSettings(r.Context())
+	if err != nil {
+		h.handleStoreError(w, err)
+		return
+	}
+	if !settings.RegistrationEnabled {
+		respondError(w, http.StatusForbidden, "Registrierung ist deaktiviert.")
+		return
+	}
+
 	var req struct {
 		Email    string `json:"email"`
 		Name     string `json:"name"`
@@ -162,8 +182,20 @@ func (h *Handler) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.logger.Info("password reset requested", "email", req.Email, "ip", clientIP(r))
-	if h.mailer.Enabled() {
-		if err := h.mailer.SendPasswordReset(req.Email, token); err != nil {
+	settings, err := h.store.AppSettings(r.Context())
+	if err != nil {
+		h.handleStoreError(w, err)
+		return
+	}
+	m := mailer.New(mailer.Config{
+		Host:     settings.SMTPHost,
+		Port:     settings.SMTPPort,
+		Username: settings.SMTPUsername,
+		Password: settings.SMTPPassword,
+		From:     settings.SMTPFrom,
+	})
+	if m.Enabled() {
+		if err := m.SendPasswordReset(req.Email, token); err != nil {
 			h.logger.Error("send password reset mail", "error", err)
 			respondError(w, http.StatusInternalServerError, "E-Mail konnte nicht gesendet werden.")
 			return

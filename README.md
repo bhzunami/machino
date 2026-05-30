@@ -15,7 +15,8 @@ Eine schlanke, kollaborative ToDo-App mit Echtzeit-Sync, Offline-Support und mod
 - **Echtzeit-Kollaboration** — mehrere Benutzer können gleichzeitig im selben Projekt arbeiten (WebSocket)
 - **Offline-Support** — Änderungen werden lokal gecacht (IndexedDB) und beim Reconnect synchronisiert
 - **Authentifizierung** — Registrierung, Login, Logout, Profil, Passwort-Reset per E-Mail
-- **Adminbereich** — Benutzer verwalten, löschen und Passwörter zurücksetzen
+- **Setup-Wizard** — geführte Ersteinrichtung über die Webapp: Admin anlegen + globale Einstellungen setzen
+- **Adminbereich** — Benutzer verwalten, löschen und Passwörter zurücksetzen; globale Einstellungen (SMTP, Registrierung, Domain) ohne Neustart ändern
 - **Sicherheit** — Rate-Limiting auf Auth-Endpunkten, Security-Header (CSP, HSTS), CSRF-Schutz
 - **Mobile-freundlich** — responsives Design mit Slide-in-Sidebar
 
@@ -53,6 +54,58 @@ make test         # Tests ausführen
 make fmt          # Go-Code formatieren
 ```
 
+### Admin-Benutzer setzen
+
+#### Ersteinrichtung via Setup-Wizard (empfohlen)
+
+Beim allerersten Start — solange noch kein Admin-User in der Datenbank existiert — zeigt die Webapp automatisch einen geführten Setup-Wizard an, bevor der normale Login erscheint.
+
+**Schritt 1 — Admin anlegen:**
+
+| Feld | Beschreibung |
+|---|---|
+| Name | Anzeigename des ersten Admins |
+| E-Mail | Login-E-Mail |
+| Passwort | Mindestens 8 Zeichen |
+
+**Schritt 2 — Globale Einstellungen:**
+
+| Feld | Beschreibung |
+|---|---|
+| App Domain | Öffentliche Domain der Instanz (z. B. `machino.example.com`) |
+| Registrierung erlauben | Neue Benutzer können sich selbst registrieren |
+| SMTP Host / Port | Mailserver für Passwort-Reset-E-Mails |
+| SMTP Benutzer / Passwort | Anmeldedaten für den Mailserver |
+| SMTP Absender | Absender-Adresse (z. B. `noreply@example.com`) |
+
+Nach dem Abschluss ist der erstellte Benutzer direkt eingeloggt und hat Admin-Rechte.
+
+> **Hinweis:** Umgebungsvariablen wie `SMTP_HOST`, `SMTP_PASSWORD` usw. werden **einmalig** beim ersten Start als Vorbelegung übernommen. Danach sind die Werte in der Datenbank maßgeblich und können im Adminbereich geändert werden.
+
+#### Globale Einstellungen nachträglich ändern
+
+Admins können alle globalen Einstellungen jederzeit ohne Neustart im Adminbereich unter **Einstellungen** ändern:
+
+- App Domain
+- Registrierung aktivieren/deaktivieren
+- SMTP Host, Port, Benutzer, Passwort und Absender
+
+Das SMTP-Passwort wird nie zurückgegeben. Ein leeres Passwortfeld beim Speichern behält das bestehende Passwort unverändert.
+
+#### Recovery / bestehende Installationen
+
+Für bestehende Installationen oder falls der Setup-Wizard übersprungen wurde, kann ein Admin über die Go-Anwendung gesetzt werden. Der Benutzer muss vorher bereits registriert sein:
+
+```bash
+# Lokal über Go
+go run ./cmd/api --set-admin admin@example.com
+
+# Oder mit gebautem Binary
+./bin/machino-api --set-admin admin@example.com
+```
+
+Der Befehl setzt nur die Rolle auf `admin` und beendet sich danach. Beim nächsten Login sieht der Benutzer den Menüpunkt **Admin**.
+
 ---
 
 ## Konfiguration (Umgebungsvariablen)
@@ -68,16 +121,16 @@ cp .env.example .env
 | `HTTP_ADDR` | `:8080` | Bind-Adresse des Servers |
 | `DATABASE_PATH` | `machino.db` | Pfad zur SQLite-Datenbank |
 | `STATIC_DIR` | `web/dist` | Pfad zum kompilierten Frontend |
-| `REGISTRATION_ENABLED` | `true` | Registrierung erlauben (`false` nach Setup) |
+| `REGISTRATION_ENABLED` | `true` | Initialwert für neue Instanzen — danach im Adminbereich steuerbar |
 | `COOKIE_SECURE` | `false` | `true` wenn hinter HTTPS-Proxy (Traefik) |
-| `APP_DOMAIN` | `machino.localhost` | Domain für Traefik-Labels |
+| `APP_DOMAIN` | `machino.localhost` | Initialwert für Setup-Wizard und Traefik-Labels |
 | `LOG_LEVEL` | `info` | `debug` · `info` · `warn` · `error` |
 | `LOG_FORMAT` | `text` | `text` (Entwicklung) · `json` (Produktion) |
-| `SMTP_HOST` | — | SMTP-Server (optional) |
-| `SMTP_PORT` | `587` | SMTP-Port (`587` STARTTLS, `465` implizites TLS) |
-| `SMTP_USERNAME` | — | SMTP-Benutzername |
-| `SMTP_PASSWORD` | — | SMTP-Passwort |
-| `SMTP_FROM` | — | Absender-Adresse |
+| `SMTP_HOST` | — | Initialwert für SMTP-Host (danach im Adminbereich) |
+| `SMTP_PORT` | `587` | Initialwert für SMTP-Port (`587` STARTTLS, `465` implizites TLS) |
+| `SMTP_USERNAME` | — | Initialwert für SMTP-Benutzername |
+| `SMTP_PASSWORD` | — | Initialwert für SMTP-Passwort |
+| `SMTP_FROM` | — | Initialwert für Absender-Adresse |
 
 > Ohne SMTP-Konfiguration läuft der Passwort-Reset im **Demo-Modus**: der Reset-Token wird direkt in der API-Antwort zurückgegeben.
 
@@ -113,17 +166,14 @@ Die App ist dann unter `https://$APP_DOMAIN` erreichbar. Let's-Encrypt-Zertifika
 ### Nach dem ersten Start
 
 ```bash
+# Falls kein Admin über den Web-Setup-Wizard erstellt wurde:
 # Einen bestehenden Benutzer zum Admin machen
 docker compose exec app /app/machino --set-admin admin@example.com
 
-# Registrierung deaktivieren sobald alle Accounts angelegt sind
-# In .env setzen:
-REGISTRATION_ENABLED=false
-
-docker compose up -d
+# Registrierung und SMTP können danach im Adminbereich unter "Einstellungen" geändert werden.
 ```
 
-Beim Start prüft das Backend die gespeicherte Datenbank-Schema-Version und führt fehlende Migrationen automatisch aus.
+Beim Start prüft das Backend die gespeicherte Datenbank-Schema-Version und führt fehlende Migrationen automatisch aus. Fehlen globale Einstellungen, werden sie einmalig aus den Umgebungsvariablen initialisiert.
 
 ### Datenbank-Backup
 

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bhzunami/machino/internal/mailer"
 	"github.com/bhzunami/machino/internal/model"
 	"github.com/bhzunami/machino/internal/realtime"
 	"github.com/bhzunami/machino/internal/store"
@@ -17,21 +16,18 @@ import (
 const cookieName = "machino_session"
 
 type Handler struct {
-	store               *store.Store
-	hub                 *realtime.Hub
-	mailer              *mailer.Mailer
-	logger              *slog.Logger
-	registrationEnabled bool
-	cookieSecure        bool
-	authLimiter         *ipRateLimiter
+	store        *store.Store
+	hub          *realtime.Hub
+	logger       *slog.Logger
+	cookieSecure bool
+	authLimiter  *ipRateLimiter
 }
 
-func New(s *store.Store, hub *realtime.Hub, m *mailer.Mailer, logger *slog.Logger) *Handler {
-	return &Handler{store: s, hub: hub, mailer: m, logger: logger}
+func New(s *store.Store, hub *realtime.Hub, logger *slog.Logger) *Handler {
+	return &Handler{store: s, hub: hub, logger: logger}
 }
 
-func (h *Handler) WithRegistration(enabled bool) *Handler { h.registrationEnabled = enabled; return h }
-func (h *Handler) WithCookieSecure(secure bool) *Handler  { h.cookieSecure = secure; return h }
+func (h *Handler) WithCookieSecure(secure bool) *Handler { h.cookieSecure = secure; return h }
 
 func (h *Handler) Router(staticDir string) http.Handler {
 	h.authLimiter = newIPRateLimiter(authRatePerSecond, authBurst)
@@ -45,12 +41,15 @@ func (h *Handler) Router(staticDir string) http.Handler {
 
 	api.HandleFunc("/health", h.health).Methods(http.MethodGet)
 
+	setupRouter := api.PathPrefix("/setup").Subrouter()
+	setupRouter.Use(rateLimit)
+	setupRouter.HandleFunc("/status", h.setupStatus).Methods(http.MethodGet)
+	setupRouter.HandleFunc("/complete", h.completeSetup).Methods(http.MethodPost)
+
 	// Auth endpoints — rate limited
 	authRouter := api.PathPrefix("/auth").Subrouter()
 	authRouter.Use(rateLimit)
-	if h.registrationEnabled {
-		authRouter.HandleFunc("/register", h.register).Methods(http.MethodPost)
-	}
+	authRouter.HandleFunc("/register", h.register).Methods(http.MethodPost)
 	authRouter.HandleFunc("/login", h.login).Methods(http.MethodPost)
 	authRouter.HandleFunc("/logout", h.auth(h.logout)).Methods(http.MethodPost)
 	authRouter.HandleFunc("/password-reset/request", h.requestPasswordReset).Methods(http.MethodPost)
@@ -61,9 +60,12 @@ func (h *Handler) Router(staticDir string) http.Handler {
 	api.HandleFunc("/profile/password", h.auth(h.updatePassword)).Methods(http.MethodPut)
 	api.HandleFunc("/users/search", h.auth(h.searchUsers)).Methods(http.MethodGet)
 	api.HandleFunc("/admin/users", h.adminAuth(h.listAdminUsers)).Methods(http.MethodGet)
+	api.HandleFunc("/admin/users", h.adminAuth(h.createAdminUser)).Methods(http.MethodPost)
 	api.HandleFunc("/admin/users/{userID}", h.adminAuth(h.updateAdminUser)).Methods(http.MethodPut)
 	api.HandleFunc("/admin/users/{userID}", h.adminAuth(h.deleteAdminUser)).Methods(http.MethodDelete)
 	api.HandleFunc("/admin/users/{userID}/password", h.adminAuth(h.updateAdminUserPassword)).Methods(http.MethodPut)
+	api.HandleFunc("/admin/settings", h.adminAuth(h.getAdminSettings)).Methods(http.MethodGet)
+	api.HandleFunc("/admin/settings", h.adminAuth(h.updateAdminSettings)).Methods(http.MethodPut)
 	api.HandleFunc("/projects", h.auth(h.listProjects)).Methods(http.MethodGet)
 	api.HandleFunc("/projects", h.auth(h.createProject)).Methods(http.MethodPost)
 	api.HandleFunc("/projects/{projectID}", h.auth(h.updateProject)).Methods(http.MethodPut)

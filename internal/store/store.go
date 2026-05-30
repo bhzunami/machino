@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -27,25 +28,51 @@ var (
 )
 
 type Store struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *slog.Logger
 }
 
-func Open(ctx context.Context, path string) (*Store, error) {
+// migrateLogger adapts *slog.Logger to the migrate.Logger interface.
+type migrateLogger struct{ l *slog.Logger }
+
+func (ml migrateLogger) Printf(format string, v ...any) {
+	ml.l.Info(fmt.Sprintf(strings.TrimRight(format, "\n"), v...))
+}
+func (migrateLogger) Verbose() bool { return true }
+
+func Open(ctx context.Context, path string, logger *slog.Logger) (*Store, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 	db.SetMaxOpenConns(1)
-	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;"); err != nil {
+	if err := setPragmas(ctx, db); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("configure database: %w", err)
+		return nil, err
 	}
-	s := &Store{db: db}
+	s := &Store{db: db, logger: logger}
 	if err := s.migrate(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
+	// golang-migrate disables foreign_keys during DDL — restore after migration.
+	if err := setPragmas(ctx, db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return s, nil
+}
+
+func setPragmas(ctx context.Context, db *sql.DB) error {
+	for _, pragma := range []string{
+		"PRAGMA foreign_keys = ON",
+		"PRAGMA journal_mode = WAL",
+	} {
+		if _, err := db.ExecContext(ctx, pragma); err != nil {
+			return fmt.Errorf("configure database (%s): %w", pragma, err)
+		}
+	}
+	return nil
 }
 
 func (s *Store) Close() error {
@@ -82,18 +109,27 @@ func (s *Store) migrate() error {
 	if err != nil {
 		return fmt.Errorf("create migrator: %w", err)
 	}
+	m.Log = migrateLogger{l: s.logger}
 	// Close only the source (embedded FS — no-op). Do NOT call m.Close() because
 	// the sqlite driver's Close() would close our shared *sql.DB connection.
 	defer src.Close()
 
 	if hasLegacy {
+		s.logger.Info("transitioning from legacy migration system", "legacy_version", legacyVersion)
 		if err := m.Force(legacyVersion); err != nil {
 			return fmt.Errorf("force migration version %d: %w", legacyVersion, err)
 		}
 	}
 
+	versionBefore, _, _ := m.Version()
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("run migrations: %w", err)
+	}
+	versionAfter, _, _ := m.Version()
+	if versionAfter > versionBefore {
+		s.logger.Info("migrations applied", "from_version", versionBefore, "to_version", versionAfter)
+	} else {
+		s.logger.Info("migrations up to date", "version", versionAfter)
 	}
 	return nil
 }

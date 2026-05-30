@@ -22,7 +22,7 @@
   let projectFormSaving = false
   let projectFormError = ''
 
-  function openProjectForm() {
+  export function openProjectForm() {
     projectFormError = ''
     showProjectForm = true
   }
@@ -250,19 +250,22 @@
   .brand, .sidebar-title {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
   }
 
-  .brand { padding: 0 4px 2px; }
+  .sidebar-title { justify-content: space-between; }
+
+  .brand { padding: 40px 8px 28px; position: relative; min-height: 100px; }
   .sidebar-title { padding: 2px 10px 2px 4px; }
 
   .brand-logo-wrap {
-    flex: 1;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     align-items: center;
-    justify-content: center;
-    min-width: 0;
   }
 
   .brand-logo {
@@ -286,6 +289,17 @@
     background: rgba(251,191,36,0.1);
     border-color: rgba(251,191,36,0.2);
     color: #fde68a;
+  }
+
+  :global([data-theme="light"]) .status-badge {
+    background: rgba(22,163,74,0.12);
+    border-color: rgba(22,163,74,0.35);
+    color: #15803d;
+  }
+  :global([data-theme="light"]) .status-badge.offline {
+    background: rgba(217,119,6,0.1);
+    border-color: rgba(217,119,6,0.3);
+    color: #b45309;
   }
 
   .sidebar-title h2 { margin: 0; }

@@ -3,7 +3,7 @@
   import { get } from 'svelte/store'
   import { setCache } from '../lib/db.js'
   import { API, TODO_CACHE_KEY } from '../lib/constants.js'
-  import { todos, columns, selectedProjectId, selectedProject, activeTodos, completedTodos } from '../lib/stores.js'
+  import { todos, columns, selectedProjectId, selectedProject, activeTodos, completedTodos, projects } from '../lib/stores.js'
   import TodoItem from './TodoItem.svelte'
   import TodoEditModal from './TodoEditModal.svelte'
 
@@ -227,13 +227,23 @@
         on:drop={(e) => reorderActiveTodo(e.detail, dropAfter)}
       />
     {:else}
-      <div class="empty card">
-        <span class="empty-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.35"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
-        </span>
-        <strong>Keine offenen Todos</strong>
-        <span>Oben eingeben und Enter drücken, um eine Aufgabe zu erstellen.</span>
-      </div>
+      {#if $projects.length === 0}
+        <div class="empty card">
+          <span class="empty-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.35"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+          </span>
+          <strong>Noch kein Projekt</strong>
+          <button class="btn" on:click={() => dispatch('new-project')}>＋ Neues Projekt</button>
+        </div>
+      {:else}
+        <div class="empty card">
+          <span class="empty-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.35"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+          </span>
+          <strong>Keine offenen Todos</strong>
+          <span>Oben eingeben und Enter drücken, um eine Aufgabe zu erstellen.</span>
+        </div>
+      {/if}
     {/each}
   </section>
 {/if}

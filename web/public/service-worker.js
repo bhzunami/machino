@@ -1,4 +1,4 @@
-const cacheName = 'machino-shell-v7'
+const cacheName = 'machino-shell-v8'
 const shellFiles = [
   '/',
   '/manifest.webmanifest',

@@ -7,10 +7,19 @@
   let users = []
   let loading = true
   let saving = false
+  let settingsLoading = false
+  let activeTab = 'users'
   let selectedUser = null
   let form = emptyForm()
+  let settings = null
+  let settingsForm = emptySettingsForm()
+  let showCreateForm = false
+  let createForm = emptyCreateForm()
 
-  onMount(loadUsers)
+  onMount(async () => {
+    await loadUsers()
+    await loadSettings()
+  })
 
   function emptyForm() {
     return {
@@ -22,6 +31,22 @@
     }
   }
 
+  function emptyCreateForm() {
+    return { email: '', name: '', password: '', role: 'user' }
+  }
+
+  function emptySettingsForm() {
+    return {
+      appDomain: '',
+      registrationEnabled: true,
+      smtpHost: '',
+      smtpPort: '587',
+      smtpUsername: '',
+      smtpPassword: '',
+      smtpFrom: '',
+    }
+  }
+
   function formatDate(value) {
     if (!value) return ''
     return new Date(value).toLocaleDateString('de-DE')
@@ -29,6 +54,7 @@
 
   function selectUser(next) {
     selectedUser = next
+    showCreateForm = false
     form = {
       email: next.email,
       name: next.name || '',
@@ -133,121 +159,344 @@
       saving = false
     }
   }
+
+  async function createUser() {
+    saving = true
+    error.set('')
+    success.set('')
+    try {
+      const payload = await api(API.adminUsers, {
+        method: 'POST',
+        body: createForm,
+      })
+      showCreateForm = false
+      createForm = emptyCreateForm()
+      await loadUsers()
+      const created = users.find((u) => u.id === payload.user.id)
+      if (created) selectUser(created)
+      success.set('Benutzer erstellt.')
+    } catch (err) {
+      error.set(err.message)
+    } finally {
+      saving = false
+    }
+  }
+
+  function fillSettingsForm(next) {
+    settings = next
+    settingsForm = {
+      appDomain: next.appDomain || '',
+      registrationEnabled: next.registrationEnabled ?? true,
+      smtpHost: next.smtpHost || '',
+      smtpPort: next.smtpPort || '587',
+      smtpUsername: next.smtpUsername || '',
+      smtpPassword: '',
+      smtpFrom: next.smtpFrom || '',
+    }
+  }
+
+  async function loadSettings() {
+    settingsLoading = true
+    error.set('')
+    try {
+      const payload = await api(API.adminSettings)
+      fillSettingsForm(payload.settings)
+    } catch (err) {
+      error.set(err.message)
+    } finally {
+      settingsLoading = false
+    }
+  }
+
+  async function saveSettings() {
+    saving = true
+    error.set('')
+    success.set('')
+    try {
+      const payload = await api(API.adminSettings, {
+        method: 'PUT',
+        body: settingsForm,
+      })
+      fillSettingsForm(payload.settings)
+      success.set('Einstellungen gespeichert.')
+    } catch (err) {
+      error.set(err.message)
+    } finally {
+      saving = false
+    }
+  }
 </script>
 
-<section class="admin-page">
-  <aside class="card user-list">
-    <div class="panel-header">
-      <div>
-        <h2>Benutzer</h2>
-        <p>{users.length} Konten</p>
-      </div>
-      <button class="btn ghost" type="button" on:click={loadUsers} disabled={loading}>Aktualisieren</button>
-    </div>
+<section class="admin-shell">
+  <div class="admin-tabs">
+    <button type="button" class:active={activeTab === 'users'} on:click={() => (activeTab = 'users')}>Benutzer</button>
+    <button type="button" class:active={activeTab === 'settings'} on:click={() => (activeTab = 'settings')}>Einstellungen</button>
+  </div>
 
-    {#if loading}
-      <p class="muted list-state">Benutzer werden geladen...</p>
-    {:else if users.length === 0}
-      <p class="muted list-state">Keine Benutzer vorhanden.</p>
-    {:else}
-      <div class="users">
-        {#each users as item (item.id)}
-          <button
-            type="button"
-            class="user-row"
-            class:active={selectedUser?.id === item.id}
-            on:click={() => selectUser(item)}
-          >
-            <span class="user-avatar">{(item.name || item.email || '?').slice(0, 1).toUpperCase()}</span>
-            <span class="user-meta">
-              <strong>{item.name || item.email}</strong>
-              <small>{item.email}</small>
-            </span>
-            {#if item.role === 'admin'}
-              <span class="role-badge">Admin</span>
-            {/if}
-          </button>
-        {/each}
-      </div>
-    {/if}
-  </aside>
-
-  <div class="card admin-form stack">
-    {#if selectedUser}
-      <div class="panel-header">
-        <div>
-          <h2>Benutzer bearbeiten</h2>
-          <p>Erstellt am {formatDate(selectedUser.createdAt)}</p>
+  {#if activeTab === 'users'}
+    <div class="admin-page">
+      <aside class="card user-list">
+        <div class="panel-header">
+          <div>
+            <h2>Benutzer</h2>
+            <p>{users.length} Konten</p>
+          </div>
+          <div class="panel-actions">
+            <button class="btn ghost" type="button" on:click={() => { showCreateForm = true; selectedUser = null; createForm = emptyCreateForm(); error.set(''); success.set('') }}>
+              + Neu
+            </button>
+            <button class="btn ghost" type="button" on:click={loadUsers} disabled={loading}>Aktualisieren</button>
+          </div>
         </div>
-        {#if selectedUser.id === $user.id}
-          <span class="self-badge">Du</span>
+
+        {#if loading}
+          <p class="muted list-state">Benutzer werden geladen...</p>
+        {:else if users.length === 0}
+          <p class="muted list-state">Keine Benutzer vorhanden.</p>
+        {:else}
+          <div class="users">
+            {#each users as item (item.id)}
+              <button
+                type="button"
+                class="user-row"
+                class:active={selectedUser?.id === item.id}
+                on:click={() => selectUser(item)}
+              >
+                <span class="user-avatar">{(item.name || item.email || '?').slice(0, 1).toUpperCase()}</span>
+                <span class="user-meta">
+                  <strong>{item.name || item.email}</strong>
+                  <small>{item.email}</small>
+                </span>
+                {#if item.role === 'admin'}
+                  <span class="role-badge">Admin</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </aside>
+
+      <div class="card admin-form stack">
+        {#if showCreateForm}
+          <div class="panel-header">
+            <div>
+              <h2>Neuen Benutzer erstellen</h2>
+              <p>Der Benutzer kann sich danach einloggen.</p>
+            </div>
+          </div>
+
+          <form class="stack" on:submit|preventDefault={createUser}>
+            <label>
+              Name
+              <input bind:value={createForm.name} placeholder="Vollständiger Name" autocomplete="off" required />
+            </label>
+            <label>
+              E-Mail
+              <input bind:value={createForm.email} type="email" placeholder="name@example.com" autocomplete="off" required />
+            </label>
+            <label>
+              Passwort
+              <input bind:value={createForm.password} type="password" placeholder="Mindestens 8 Zeichen..." autocomplete="new-password" required />
+            </label>
+            <label>
+              Rolle
+              <select bind:value={createForm.role}>
+                <option value="user">Benutzer</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <button class="btn secondary" type="submit" disabled={saving}>Benutzer erstellen</button>
+            <button class="btn cancel" type="button" on:click={() => { showCreateForm = false; createForm = emptyCreateForm() }}>Abbrechen</button>
+          </form>
+        {:else if selectedUser}
+          <div class="panel-header">
+            <div>
+              <h2>Benutzer bearbeiten</h2>
+              <p>Erstellt am {formatDate(selectedUser.createdAt)}</p>
+            </div>
+            {#if selectedUser.id === $user.id}
+              <span class="self-badge">Du</span>
+            {/if}
+          </div>
+
+          <form class="stack" on:submit|preventDefault={saveUser}>
+            <label>
+              Name
+              <input bind:value={form.name} autocomplete="name" />
+            </label>
+            <label>
+              E-Mail
+              <input bind:value={form.email} type="email" autocomplete="email" />
+            </label>
+            <label>
+              Rolle
+              <select bind:value={form.role} disabled={selectedUser.id === $user.id}>
+                <option value="user">Benutzer</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <span class="toggle-label">In Projektsuche auffindbar</span>
+                <span class="toggle-desc">Andere Nutzer können dieses Konto beim Teilen von Projekten finden.</span>
+              </div>
+              <button
+                type="button"
+                class="toggle-btn"
+                class:on={form.searchable}
+                aria-label="Auffindbarkeit umschalten"
+                aria-pressed={form.searchable}
+                on:click={() => (form.searchable = !form.searchable)}
+              >
+                <span class="toggle-knob"></span>
+              </button>
+            </div>
+
+            <button class="btn secondary" type="submit" disabled={saving}>Benutzer speichern</button>
+          </form>
+
+          <div class="section-divider"></div>
+
+          <div class="stack">
+            <label>
+              Neues Passwort
+              <input bind:value={form.password} type="password" autocomplete="new-password" placeholder="Mindestens 8 Zeichen..." />
+            </label>
+            <button class="btn secondary" type="button" on:click={resetPassword} disabled={saving || !form.password}>
+              Passwort zurücksetzen
+            </button>
+          </div>
+
+          <div class="section-divider"></div>
+
+          <button class="danger-btn" type="button" on:click={deleteUser} disabled={saving || selectedUser.id === $user.id}>
+            Benutzer löschen
+          </button>
+          {#if selectedUser.id === $user.id}
+            <p class="muted hint">Dein eigener Admin-User kann nicht gelöscht werden.</p>
+          {/if}
+        {:else}
+          <p class="muted list-state">Wähle links einen Benutzer aus.</p>
         {/if}
       </div>
-
-      <form class="stack" on:submit|preventDefault={saveUser}>
-        <label>
-          Name
-          <input bind:value={form.name} autocomplete="name" />
-        </label>
-        <label>
-          E-Mail
-          <input bind:value={form.email} type="email" autocomplete="email" />
-        </label>
-        <label>
-          Rolle
-          <select bind:value={form.role} disabled={selectedUser.id === $user.id}>
-            <option value="user">Benutzer</option>
-            <option value="admin">Admin</option>
-          </select>
-        </label>
-
-        <div class="toggle-row">
-          <div class="toggle-text">
-            <span class="toggle-label">In Projektsuche auffindbar</span>
-            <span class="toggle-desc">Andere Nutzer können dieses Konto beim Teilen von Projekten finden.</span>
+    </div>
+  {:else}
+    <div class="settings-page">
+      <div class="card admin-form settings-card stack">
+        <div class="panel-header">
+          <div>
+            <h2>Globale Einstellungen</h2>
           </div>
-          <button
-            type="button"
-            class="toggle-btn"
-            class:on={form.searchable}
-            aria-label="Auffindbarkeit umschalten"
-            aria-pressed={form.searchable}
-            on:click={() => (form.searchable = !form.searchable)}
-          >
-            <span class="toggle-knob"></span>
-          </button>
+          <button class="btn ghost" type="button" on:click={loadSettings} disabled={settingsLoading}>Aktualisieren</button>
         </div>
 
-        <button class="btn secondary" type="submit" disabled={saving}>Benutzer speichern</button>
-      </form>
+        {#if settingsLoading}
+          <p class="muted list-state">Einstellungen werden geladen...</p>
+        {:else}
+          <form class="stack" on:submit|preventDefault={saveSettings}>
+            <label>
+              App Domain
+              <input bind:value={settingsForm.appDomain} placeholder="machino.example.com" />
+            </label>
 
-      <div class="section-divider"></div>
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <span class="toggle-label">Registrierung erlauben</span>
+                <span class="toggle-desc">Neue Benutzer können sich über die Login-Seite registrieren.</span>
+              </div>
+              <button
+                type="button"
+                class="toggle-btn"
+                class:on={settingsForm.registrationEnabled}
+                aria-label="Registrierung umschalten"
+                aria-pressed={settingsForm.registrationEnabled}
+                on:click={() => (settingsForm.registrationEnabled = !settingsForm.registrationEnabled)}
+              >
+                <span class="toggle-knob"></span>
+              </button>
+            </div>
 
-      <div class="stack">
-        <label>
-          Neues Passwort
-          <input bind:value={form.password} type="password" autocomplete="new-password" placeholder="Mindestens 8 Zeichen..." />
-        </label>
-        <button class="btn secondary" type="button" on:click={resetPassword} disabled={saving || !form.password}>
-          Passwort zurücksetzen
-        </button>
+            <div class="section-divider"></div>
+
+            <div class="settings-grid">
+              <label>
+                SMTP Host
+                <input bind:value={settingsForm.smtpHost} placeholder="smtp.example.com" />
+              </label>
+              <label>
+                SMTP Port
+                <input bind:value={settingsForm.smtpPort} inputmode="numeric" placeholder="587" />
+              </label>
+            </div>
+            <label>
+              SMTP Benutzer
+              <input bind:value={settingsForm.smtpUsername} autocomplete="username" placeholder="mailer@example.com" />
+            </label>
+            <label>
+              SMTP Passwort
+              <input bind:value={settingsForm.smtpPassword} type="password" autocomplete="new-password" placeholder="Leer lassen, um bestehendes Passwort zu behalten" />
+            </label>
+            <p class="muted hint">
+              {settings?.smtpPasswordSet ? 'SMTP-Passwort ist gesetzt. Leer speichern behält das bestehende Passwort.' : 'SMTP-Passwort ist noch nicht gesetzt.'}
+            </p>
+            <label>
+              SMTP Absender
+              <input bind:value={settingsForm.smtpFrom} type="email" placeholder="noreply@example.com" />
+            </label>
+
+            <button class="btn secondary" type="submit" disabled={saving}>Einstellungen speichern</button>
+          </form>
+        {/if}
       </div>
-
-      <div class="section-divider"></div>
-
-      <button class="danger-btn" type="button" on:click={deleteUser} disabled={saving || selectedUser.id === $user.id}>
-        Benutzer löschen
-      </button>
-      {#if selectedUser.id === $user.id}
-        <p class="muted hint">Dein eigener Admin-User kann nicht gelöscht werden.</p>
-      {/if}
-    {:else}
-      <p class="muted list-state">Wähle links einen Benutzer aus.</p>
-    {/if}
-  </div>
+    </div>
+  {/if}
 </section>
 
 <style>
+  .admin-shell {
+    display: grid;
+    gap: 16px;
+  }
+
+  .admin-tabs {
+    display: inline-flex;
+    gap: 4px;
+    margin: 28px 28px 0;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    width: fit-content;
+  }
+
+  .admin-tabs button {
+    border: 0;
+    border-radius: 9px;
+    padding: 8px 18px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .admin-tabs button:hover {
+    background: var(--glass-hover);
+    color: var(--text);
+  }
+
+  .admin-tabs button.active {
+    background: rgba(99,102,241,0.2);
+    color: #818cf8;
+    box-shadow: 0 1px 4px rgba(99,102,241,0.18);
+  }
+
+  [data-theme="light"] .admin-tabs button.active {
+    background: rgba(99,102,241,0.14);
+    color: #4338ca;
+  }
+
   .admin-page {
     display: grid;
     grid-template-columns: minmax(260px, 360px) minmax(360px, 620px);
@@ -265,11 +514,32 @@
     box-sizing: border-box;
   }
 
+  .settings-page {
+    padding: 0 28px 40px;
+  }
+
+  .settings-card {
+    max-width: 720px;
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 120px;
+    gap: 12px;
+  }
+
   .panel-header {
     display: flex;
     justify-content: space-between;
     gap: 16px;
     align-items: flex-start;
+  }
+
+  .panel-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   h2 {
@@ -445,14 +715,46 @@
     cursor: not-allowed;
   }
 
+  :global([data-theme="light"]) .danger-btn {
+    color: #b91c1c;
+    background: rgba(220,38,38,0.08);
+    border-color: rgba(220,38,38,0.25);
+  }
+
+  .btn.cancel {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    box-shadow: none;
+  }
+  .btn.cancel:hover {
+    background: var(--glass);
+    border-color: var(--border-hover);
+    color: var(--text);
+    transform: none;
+    box-shadow: none;
+  }
+
   .list-state {
     padding: 16px 0 0;
   }
 
   @media (max-width: 900px) {
+    .admin-tabs {
+      margin: 18px 16px 0;
+    }
+
     .admin-page {
       grid-template-columns: 1fr;
       padding: 18px 16px 32px;
+    }
+
+    .settings-page {
+      padding: 0 16px 32px;
+    }
+
+    .settings-grid {
+      grid-template-columns: 1fr;
     }
 
     .user-list,

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/bhzunami/machino/internal/handler"
-	"github.com/bhzunami/machino/internal/mailer"
+	"github.com/bhzunami/machino/internal/model"
 	"github.com/bhzunami/machino/internal/realtime"
 	"github.com/bhzunami/machino/internal/store"
 )
@@ -44,8 +44,17 @@ func main() {
 	dbPath := env("DATABASE_PATH", "machino.db")
 	addr := env("HTTP_ADDR", ":8080")
 	staticDir := env("STATIC_DIR", "web/dist")
+	defaultSettings := model.AppSettings{
+		AppDomain:           env("APP_DOMAIN", ""),
+		RegistrationEnabled: env("REGISTRATION_ENABLED", "true") != "false",
+		SMTPHost:            env("SMTP_HOST", ""),
+		SMTPPort:            env("SMTP_PORT", "587"),
+		SMTPUsername:        env("SMTP_USERNAME", ""),
+		SMTPPassword:        env("SMTP_PASSWORD", ""),
+		SMTPFrom:            env("SMTP_FROM", ""),
+	}
 
-	s, err := store.Open(ctx, dbPath)
+	s, err := store.Open(ctx, dbPath, logger)
 	if err != nil {
 		logger.Error("open store", "error", err)
 		os.Exit(1)
@@ -55,6 +64,10 @@ func main() {
 			logger.Warn("close store", "error", err)
 		}
 	}()
+	if err := s.BootstrapAppSettings(ctx, defaultSettings); err != nil {
+		logger.Error("bootstrap app settings", "error", err)
+		os.Exit(1)
+	}
 	if *setAdminEmail != "" {
 		user, err := s.SetAdminByEmail(ctx, *setAdminEmail)
 		if err != nil {
@@ -66,30 +79,25 @@ func main() {
 	}
 
 	hub := realtime.NewHub(logger)
-	m := mailer.New(mailer.Config{
-		Host:     env("SMTP_HOST", ""),
-		Port:     env("SMTP_PORT", "587"),
-		Username: env("SMTP_USERNAME", ""),
-		Password: env("SMTP_PASSWORD", ""),
-		From:     env("SMTP_FROM", ""),
-	})
-	if m.Enabled() {
-		logger.Info("mailer ready", "host", env("SMTP_HOST", ""), "port", env("SMTP_PORT", "587"))
+	settings, err := s.AppSettings(ctx)
+	if err != nil {
+		logger.Error("load app settings", "error", err)
+		os.Exit(1)
+	}
+	if settings.SMTPHost != "" && settings.SMTPUsername != "" {
+		logger.Info("mailer ready", "host", settings.SMTPHost, "port", settings.SMTPPort)
 	} else {
 		logger.Warn("mailer not configured — password reset runs in demo mode (token in API response)")
 	}
-
-	registrationEnabled := env("REGISTRATION_ENABLED", "true") != "false"
 	cookieSecure := env("COOKIE_SECURE", "false") == "true"
-	if !registrationEnabled {
-		logger.Info("registration disabled — set REGISTRATION_ENABLED=true to enable")
+	if !settings.RegistrationEnabled {
+		logger.Info("registration disabled")
 	}
 	if cookieSecure {
 		logger.Info("secure cookies enabled — HSTS will be sent")
 	}
 
-	h := handler.New(s, hub, m, logger).
-		WithRegistration(registrationEnabled).
+	h := handler.New(s, hub, logger).
 		WithCookieSecure(cookieSecure)
 	router := h.Router(staticDir)
 	server := &http.Server{

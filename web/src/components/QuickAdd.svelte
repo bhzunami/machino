@@ -49,7 +49,7 @@
   }
 </script>
 
-<form class="quick-add card" on:submit|preventDefault={createTodo}>
+<form class="quick-add card" class:disabled={!$selectedProjectId} on:submit|preventDefault={createTodo}>
   <input
     bind:value={todoForm.title}
     placeholder="Neue Aufgabe…"
@@ -97,6 +97,12 @@
     place-items: center;
     min-width: 42px;
   }
+
+  .quick-add.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .quick-add.disabled input { cursor: not-allowed; }
 
   @media (max-width: 900px) {
     .quick-add { grid-template-columns: 1fr; }
