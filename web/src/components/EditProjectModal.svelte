@@ -214,7 +214,6 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="btn secondary" on:click={close}>Abbrechen</button>
       <button type="button" class="btn" disabled={!form.title.trim()} on:click={save}>Speichern</button>
     </div>
   </div>
