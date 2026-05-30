@@ -79,6 +79,17 @@ func (h *Handler) updateTodo(w http.ResponseWriter, r *http.Request, user model.
 	respond(w, http.StatusOK, map[string]any{"todo": todo})
 }
 
+func (h *Handler) deleteTodo(w http.ResponseWriter, r *http.Request, user model.User) {
+	todoID := mux.Vars(r)["todoID"]
+	projectID, err := h.store.DeleteTodo(r.Context(), user.ID, todoID)
+	if err != nil {
+		h.handleStoreError(w, err)
+		return
+	}
+	h.hub.Broadcast(projectID)
+	respond(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 func (h *Handler) deleteCompletedTodos(w http.ResponseWriter, r *http.Request, user model.User) {
 	projectID := mux.Vars(r)["projectID"]
 	if err := h.store.DeleteCompletedTodos(r.Context(), user.ID, projectID); err != nil {

@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte'
+  import { get } from 'svelte/store'
   import { columns, selectedProjectId } from '../lib/stores.js'
   import { API } from '../lib/constants.js'
 
@@ -12,6 +13,11 @@
   let newColumnTitle = ''
   let editingColumnId = ''
   let editingColumnTitle = ''
+
+  // Column drag-and-drop state
+  let draggedColId = ''
+  let dragOverColId = ''
+  let colDropAfter = false
 
   $: if (project) {
     form = {
@@ -68,6 +74,54 @@
       body: null,
     })
   }
+
+  function handleColDragStart(e, colId) {
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', colId)
+    }
+    draggedColId = colId
+  }
+
+  function markColDropTarget(e, colId) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    dragOverColId = colId
+    colDropAfter = e.clientY > rect.top + rect.height / 2
+  }
+
+  function clearColDragState() {
+    draggedColId = ''
+    dragOverColId = ''
+    colDropAfter = false
+  }
+
+  function handleColDrop(targetColId) {
+    if (!draggedColId || draggedColId === targetColId) {
+      clearColDragState()
+      return
+    }
+    const current = get(columns)
+    const src = current.findIndex((c) => c.id === draggedColId)
+    const dst = current.findIndex((c) => c.id === targetColId)
+    if (src < 0 || dst < 0) {
+      clearColDragState()
+      return
+    }
+    const reordered = [...current]
+    const [item] = reordered.splice(src, 1)
+    let insertAt = dst
+    if (!colDropAfter && src < dst) insertAt = dst - 1
+    if (colDropAfter && src > dst) insertAt = dst + 1
+    if (colDropAfter && src < dst) insertAt = dst
+    reordered.splice(insertAt, 0, item)
+    columns.set(reordered)
+    clearColDragState()
+    dispatch('run-or-queue', {
+      method: 'PUT',
+      path: API.projectColumnsReorder($selectedProjectId),
+      body: { ids: reordered.map((c) => c.id) },
+    })
+  }
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
@@ -118,7 +172,18 @@
         </div>
         <ul class="columns-list">
           {#each $columns as col (col.id)}
-            <li class="column-item">
+            <li
+              class="column-item"
+              class:drag-over-before={dragOverColId === col.id && !colDropAfter}
+              class:drag-over-after={dragOverColId === col.id && colDropAfter}
+              draggable="true"
+              on:dragstart={(e) => handleColDragStart(e, col.id)}
+              on:dragover|preventDefault={(e) => markColDropTarget(e, col.id)}
+              on:dragleave={() => (dragOverColId = '')}
+              on:dragend={clearColDragState}
+              on:drop|preventDefault={() => handleColDrop(col.id)}
+            >
+              <span class="col-drag-handle" aria-hidden="true">⋮⋮</span>
               {#if editingColumnId === col.id}
                 <input
                   class="column-edit-input"
@@ -355,7 +420,25 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 6px 10px;
+    cursor: grab;
+    position: relative;
+    transition: border-color 0.12s;
   }
+  .column-item:active { cursor: grabbing; }
+
+  .column-item.drag-over-before { border-top-color: var(--accent-color); box-shadow: 0 -2px 0 var(--accent-color); }
+  .column-item.drag-over-after  { border-bottom-color: var(--accent-color); box-shadow: 0 2px 0 var(--accent-color); }
+
+  .col-drag-handle {
+    color: var(--text-faint);
+    font-size: 0.9rem;
+    font-weight: 900;
+    letter-spacing: -0.1em;
+    flex-shrink: 0;
+    opacity: 0.5;
+    transition: opacity 0.12s;
+  }
+  .column-item:hover .col-drag-handle { opacity: 1; }
 
   .column-title {
     flex: 1;
