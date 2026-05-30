@@ -51,17 +51,10 @@ func (h *Handler) createAdminUser(w http.ResponseWriter, r *http.Request, admin 
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	created, err := h.store.CreateUser(r.Context(), req.Email, req.Name, hash)
+	created, err := h.store.CreateUser(r.Context(), req.Email, req.Name, hash, req.Role)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return
-	}
-	if req.Role == model.RoleAdmin {
-		created, err = h.store.UpdateUser(r.Context(), created.ID, created.Email, created.Name, created.Searchable, model.RoleAdmin)
-		if err != nil {
-			h.handleStoreError(w, err)
-			return
-		}
 	}
 	h.logger.Info("admin created user", "admin_id", admin.ID, "new_user_id", created.ID)
 	respond(w, http.StatusOK, map[string]any{"user": created})

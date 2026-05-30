@@ -51,32 +51,17 @@ WHERE id = 1`)
 	return settings, nil
 }
 
+// execerContext is satisfied by *sql.DB and *sql.Tx, allowing shared DML helpers.
+type execerContext interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 func (s *Store) UpdateAppSettings(ctx context.Context, next model.AppSettings) (model.AppSettings, error) {
 	next = normalizeAppSettings(next)
 	if err := validateAppSettings(next); err != nil {
 		return model.AppSettings{}, err
 	}
-	result, err := s.db.ExecContext(ctx, `
-UPDATE app_settings
-SET app_domain = ?,
-    registration_enabled = ?,
-    smtp_host = ?,
-    smtp_port = ?,
-    smtp_username = ?,
-    smtp_password = CASE WHEN ? = '' THEN smtp_password ELSE ? END,
-    smtp_from = ?,
-    updated_at = ?
-WHERE id = 1`,
-		next.AppDomain,
-		boolToInt(next.RegistrationEnabled),
-		next.SMTPHost,
-		next.SMTPPort,
-		next.SMTPUsername,
-		next.SMTPPassword,
-		next.SMTPPassword,
-		next.SMTPFrom,
-		time.Now().UTC(),
-	)
+	result, err := execUpdateAppSettings(ctx, s.db, next)
 	if err != nil {
 		return model.AppSettings{}, fmt.Errorf("update app settings: %w", err)
 	}
@@ -193,7 +178,16 @@ func scanAppSettings(row appSettingsScanner) (model.AppSettings, error) {
 }
 
 func updateAppSettingsTx(ctx context.Context, tx *sql.Tx, next model.AppSettings) error {
-	_, err := tx.ExecContext(ctx, `
+	_, err := execUpdateAppSettings(ctx, tx, next)
+	if err != nil {
+		return fmt.Errorf("update setup app settings: %w", err)
+	}
+	return nil
+}
+
+// execUpdateAppSettings runs the shared UPDATE for app_settings via any execer (db or tx).
+func execUpdateAppSettings(ctx context.Context, db execerContext, next model.AppSettings) (sql.Result, error) {
+	return db.ExecContext(ctx, `
 UPDATE app_settings
 SET app_domain = ?,
     registration_enabled = ?,
@@ -214,10 +208,6 @@ WHERE id = 1`,
 		next.SMTPFrom,
 		time.Now().UTC(),
 	)
-	if err != nil {
-		return fmt.Errorf("update setup app settings: %w", err)
-	}
-	return nil
 }
 
 func normalizeAppSettings(settings model.AppSettings) model.AppSettings {

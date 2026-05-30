@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"path/filepath"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ import (
 
 func TestAdminUserManagement(t *testing.T) {
 	ctx := context.Background()
-	s, err := Open(ctx, ":memory:")
+	s, err := Open(ctx, ":memory:", slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -27,11 +28,11 @@ func TestAdminUserManagement(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	admin, err := s.CreateUser(ctx, "admin@example.com", "Admin", string(hash))
+	admin, err := s.CreateUser(ctx, "admin@example.com", "Admin", string(hash), model.RoleUser)
 	if err != nil {
 		t.Fatalf("create admin user: %v", err)
 	}
-	regular, err := s.CreateUser(ctx, "user@example.com", "User", string(hash))
+	regular, err := s.CreateUser(ctx, "user@example.com", "User", string(hash), model.RoleUser)
 	if err != nil {
 		t.Fatalf("create regular user: %v", err)
 	}
@@ -107,7 +108,7 @@ searchable INTEGER NOT NULL DEFAULT 1
 		t.Fatalf("close old db: %v", err)
 	}
 
-	s, err := Open(ctx, dbPath)
+	s, err := Open(ctx, dbPath, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatalf("open migrated store: %v", err)
 	}

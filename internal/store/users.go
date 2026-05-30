@@ -11,9 +11,12 @@ import (
 	"github.com/bhzunami/machino/internal/model"
 )
 
-func (s *Store) CreateUser(ctx context.Context, email, name, passwordHash string) (model.User, error) {
+// CreateUser inserts a new user with the given role. Use model.RoleUser for regular
+// registrations and model.RoleAdmin for admin-provisioned accounts.
+func (s *Store) CreateUser(ctx context.Context, email, name, passwordHash, role string) (model.User, error) {
 	email = NormalizeEmail(email)
-	if email == "" || passwordHash == "" {
+	name = strings.TrimSpace(name)
+	if email == "" || passwordHash == "" || !validRole(role) {
 		return model.User{}, ErrInvalidInput
 	}
 	id, err := NewID()
@@ -21,15 +24,23 @@ func (s *Store) CreateUser(ctx context.Context, email, name, passwordHash string
 		return model.User{}, err
 	}
 	now := time.Now().UTC()
-	_, err = s.db.ExecContext(ctx, `INSERT INTO users (id, email, name, password_hash, created_at, searchable) VALUES (?, ?, ?, ?, ?, 1)`,
-		id, email, strings.TrimSpace(name), passwordHash, now)
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO users (id, email, name, password_hash, role, created_at, searchable) VALUES (?, ?, ?, ?, ?, ?, 1)`,
+		id, email, name, passwordHash, role, now)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return model.User{}, ErrEmailConflict
 		}
 		return model.User{}, fmt.Errorf("insert user: %w", err)
 	}
-	return model.User{ID: id, Email: email, Name: strings.TrimSpace(name), Role: model.RoleUser, Searchable: true, CreatedAt: now}, nil
+	return model.User{
+		ID:         id,
+		Email:      email,
+		Name:       name,
+		Role:       role,
+		Searchable: true,
+		CreatedAt:  now,
+	}, nil
 }
 
 func (s *Store) UserByEmail(ctx context.Context, email string) (model.User, string, error) {
@@ -129,7 +140,7 @@ ORDER BY created_at DESC, email ASC`)
 		return nil, fmt.Errorf("iterate users: %w", err)
 	}
 	if users == nil {
-		users = []model.User{}
+		return []model.User{}, nil
 	}
 	return users, nil
 }

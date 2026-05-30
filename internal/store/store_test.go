@@ -2,14 +2,16 @@ package store
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
+	"github.com/bhzunami/machino/internal/model"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func TestProjectTodoFlow(t *testing.T) {
 	ctx := context.Background()
-	s, err := Open(ctx, ":memory:")
+	s, err := Open(ctx, ":memory:", slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -19,7 +21,7 @@ func TestProjectTodoFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hash password: %v", err)
 	}
-	user, err := s.CreateUser(ctx, "USER@example.com", "User", string(hash))
+	user, err := s.CreateUser(ctx, "USER@example.com", "User", string(hash), model.RoleUser)
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}

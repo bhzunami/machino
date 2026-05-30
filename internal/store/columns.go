@@ -19,7 +19,7 @@ ORDER BY position ASC, created_at ASC`, projectID, projectID, userID)
 		return nil, fmt.Errorf("list columns: %w", err)
 	}
 	defer rows.Close()
-	var cols []model.Column
+	cols := []model.Column{}
 	for rows.Next() {
 		var c model.Column
 		if err := rows.Scan(&c.ID, &c.ProjectID, &c.Title, &c.Position, &c.CreatedAt, &c.UpdatedAt); err != nil {

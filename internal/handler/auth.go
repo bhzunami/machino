@@ -70,7 +70,7 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	user, err := h.store.CreateUser(r.Context(), req.Email, req.Name, hash)
+	user, err := h.store.CreateUser(r.Context(), req.Email, req.Name, hash, model.RoleUser)
 	if err != nil {
 		h.handleStoreError(w, err)
 		return

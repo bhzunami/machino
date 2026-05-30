@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/bhzunami/machino/internal/model"
@@ -9,7 +10,7 @@ import (
 
 func TestAppSettingsBootstrapAndUpdate(t *testing.T) {
 	ctx := context.Background()
-	s, err := Open(ctx, ":memory:")
+	s, err := Open(ctx, ":memory:", slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -63,7 +64,7 @@ func TestAppSettingsBootstrapAndUpdate(t *testing.T) {
 
 func TestCreateSetupAdmin(t *testing.T) {
 	ctx := context.Background()
-	s, err := Open(ctx, ":memory:")
+	s, err := Open(ctx, ":memory:", slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}

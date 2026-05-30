@@ -27,7 +27,7 @@ ORDER BY CASE WHEN pf.user_id IS NULL THEN 1 ELSE 0 END, p.updated_at DESC`,
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
 	defer rows.Close()
-	var projects []model.Project
+	projects := []model.Project{}
 	for rows.Next() {
 		var p model.Project
 		var moveDone int
@@ -197,7 +197,7 @@ ORDER BY CASE WHEN pm.role = 'owner' THEN 0 ELSE 1 END, pm.joined_at ASC`, proje
 		return nil, fmt.Errorf("list members: %w", err)
 	}
 	defer rows.Close()
-	var members []model.ProjectMember
+	members := []model.ProjectMember{}
 	for rows.Next() {
 		var m model.ProjectMember
 		if err := rows.Scan(&m.UserID, &m.Name, &m.Email, &m.Role, &m.JoinedAt); err != nil {
@@ -205,7 +205,25 @@ ORDER BY CASE WHEN pm.role = 'owner' THEN 0 ELSE 1 END, pm.joined_at ASC`, proje
 		}
 		members = append(members, m)
 	}
-	return members, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate members: %w", err)
+	}
+	return members, nil
+}
+
+// readProjectMember reads back a single project_members row with user info.
+func (s *Store) readProjectMember(ctx context.Context, projectID, userID string) (model.ProjectMember, error) {
+	var m model.ProjectMember
+	err := s.db.QueryRowContext(ctx,
+		`SELECT u.id, u.name, u.email, pm.role, pm.joined_at
+         FROM project_members pm JOIN users u ON u.id = pm.user_id
+         WHERE pm.project_id = ? AND pm.user_id = ?`,
+		projectID, userID).
+		Scan(&m.UserID, &m.Name, &m.Email, &m.Role, &m.JoinedAt)
+	if err != nil {
+		return model.ProjectMember{}, fmt.Errorf("read project member: %w", err)
+	}
+	return m, nil
 }
 
 // AddMember invites a user (by email) to a project. Only the owner may do this.
@@ -238,16 +256,7 @@ func (s *Store) AddMember(ctx context.Context, ownerID, projectID, email string)
 		projectID, invitee.ID, now); err != nil {
 		return model.ProjectMember{}, fmt.Errorf("insert member: %w", err)
 	}
-	// Read back actual role (may already have been owner).
-	var m model.ProjectMember
-	if err := s.db.QueryRowContext(ctx,
-		`SELECT u.id, u.name, u.email, pm.role, pm.joined_at
- FROM project_members pm JOIN users u ON u.id = pm.user_id
- WHERE pm.project_id = ? AND pm.user_id = ?`, projectID, invitee.ID).
-		Scan(&m.UserID, &m.Name, &m.Email, &m.Role, &m.JoinedAt); err != nil {
-		return model.ProjectMember{}, fmt.Errorf("read new member: %w", err)
-	}
-	return m, nil
+	return s.readProjectMember(ctx, projectID, invitee.ID)
 }
 
 // AddMemberByUserID adds a user (by ID) to a project. Only the owner may do this.
@@ -277,15 +286,7 @@ func (s *Store) AddMemberByUserID(ctx context.Context, ownerID, projectID, invit
 		projectID, invitee.ID, now); err != nil {
 		return model.ProjectMember{}, fmt.Errorf("insert member by id: %w", err)
 	}
-	var m model.ProjectMember
-	if err := s.db.QueryRowContext(ctx,
-		`SELECT u.id, u.name, u.email, pm.role, pm.joined_at
- FROM project_members pm JOIN users u ON u.id = pm.user_id
- WHERE pm.project_id = ? AND pm.user_id = ?`, projectID, invitee.ID).
-		Scan(&m.UserID, &m.Name, &m.Email, &m.Role, &m.JoinedAt); err != nil {
-		return model.ProjectMember{}, fmt.Errorf("read new member by id: %w", err)
-	}
-	return m, nil
+	return s.readProjectMember(ctx, projectID, invitee.ID)
 }
 
 // RemoveMember removes a member from a project.

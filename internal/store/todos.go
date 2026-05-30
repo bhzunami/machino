@@ -21,7 +21,7 @@ ORDER BY position ASC, created_at ASC`, projectID, projectID, userID)
 		return nil, fmt.Errorf("list todos: %w", err)
 	}
 	defer rows.Close()
-	var todos []model.Todo
+	todos := []model.Todo{}
 	for rows.Next() {
 		var t model.Todo
 		var due sql.NullTime
@@ -64,6 +64,16 @@ func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, descri
 			_ = tx.Rollback()
 		}
 	}()
+	// Check membership before any writes to prevent unauthorized inserts.
+	var memberCount int
+	if err = tx.QueryRowContext(ctx,
+		`SELECT COUNT(1) FROM project_members WHERE project_id = ? AND user_id = ?`, projectID, userID).Scan(&memberCount); err != nil {
+		return model.Todo{}, fmt.Errorf("check project membership: %w", err)
+	}
+	if memberCount == 0 {
+		err = ErrNotFound
+		return model.Todo{}, err
+	}
 	if _, err = tx.ExecContext(ctx,
 		`UPDATE todos SET position = position + 1 WHERE project_id = ?`, projectID); err != nil {
 		return model.Todo{}, fmt.Errorf("shift todo positions: %w", err)
@@ -82,17 +92,6 @@ func (s *Store) CreateTodo(ctx context.Context, userID, projectID, title, descri
 		`INSERT INTO todos (id, project_id, column_id, title, description, due_date, priority, completed, position, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
 		id, projectID, colID, title, strings.TrimSpace(description), due, priority, position, userID, now, now); err != nil {
 		return model.Todo{}, fmt.Errorf("insert todo: %w", err)
-	}
-	// Verify membership before committing.
-	var memberCount int
-	if err = tx.QueryRowContext(ctx,
-		`SELECT COUNT(1) FROM project_members WHERE project_id = ? AND user_id = ?`, projectID, userID).Scan(&memberCount); err != nil {
-		err = fmt.Errorf("check project membership: %w", err)
-		return model.Todo{}, err
-	}
-	if memberCount == 0 {
-		err = ErrNotFound
-		return model.Todo{}, err
 	}
 	if _, err = tx.ExecContext(ctx,
 		`UPDATE projects SET updated_at = ? WHERE id = ?`, now, projectID); err != nil {
