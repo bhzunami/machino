@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,6 +18,9 @@ import (
 )
 
 func main() {
+	setAdminEmail := flag.String("set-admin", "", "grant admin role to the user with this email, then exit")
+	flag.Parse()
+
 	logLevel := slog.LevelInfo
 	switch env("LOG_LEVEL", "info") {
 	case "debug":
@@ -51,6 +55,15 @@ func main() {
 			logger.Warn("close store", "error", err)
 		}
 	}()
+	if *setAdminEmail != "" {
+		user, err := s.SetAdminByEmail(ctx, *setAdminEmail)
+		if err != nil {
+			logger.Error("set admin", "email", *setAdminEmail, "error", err)
+			os.Exit(1)
+		}
+		logger.Info("admin role granted", "email", user.Email, "user_id", user.ID)
+		return
+	}
 
 	hub := realtime.NewHub(logger)
 	m := mailer.New(mailer.Config{

@@ -4,13 +4,20 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "modernc.org/sqlite"
 )
+
+//go:embed migrations
+var migrationsFS embed.FS
 
 var (
 	ErrInvalidInput  = errors.New("invalid input")
@@ -34,7 +41,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		return nil, fmt.Errorf("configure database: %w", err)
 	}
 	s := &Store{db: db}
-	if err := s.migrate(ctx); err != nil {
+	if err := s.migrate(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
@@ -45,101 +52,75 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func (s *Store) migrate(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, `
-CREATE TABLE IF NOT EXISTS users (
-id TEXT PRIMARY KEY,
-email TEXT NOT NULL UNIQUE,
-name TEXT NOT NULL DEFAULT '',
-password_hash TEXT NOT NULL,
-created_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS sessions (
-token TEXT PRIMARY KEY,
-user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-expires_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS password_resets (
-token TEXT PRIMARY KEY,
-user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-expires_at DATETIME NOT NULL,
-used_at DATETIME
-);
-CREATE TABLE IF NOT EXISTS projects (
-id TEXT PRIMARY KEY,
-title TEXT NOT NULL,
-description TEXT NOT NULL DEFAULT '',
-color TEXT NOT NULL DEFAULT '#4f46e5',
-move_done INTEGER NOT NULL DEFAULT 1,
-created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-created_at DATETIME NOT NULL,
-updated_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS project_members (
-project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-user_id    TEXT NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
-role       TEXT NOT NULL DEFAULT 'member',
-joined_at  DATETIME NOT NULL,
-PRIMARY KEY (project_id, user_id)
-);
-CREATE TABLE IF NOT EXISTS project_favorites (
-user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-PRIMARY KEY (user_id, project_id)
-);
-CREATE TABLE IF NOT EXISTS todos (
-id TEXT PRIMARY KEY,
-project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-title TEXT NOT NULL,
-description TEXT NOT NULL DEFAULT '',
-due_date DATETIME,
-priority TEXT NOT NULL DEFAULT 'normal',
-completed INTEGER NOT NULL DEFAULT 0,
-position INTEGER NOT NULL,
-created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-created_at DATETIME NOT NULL,
-updated_at DATETIME NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_todos_project_position ON todos(project_id, position);
-CREATE TABLE IF NOT EXISTS project_columns (
-id TEXT PRIMARY KEY,
-project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-title TEXT NOT NULL,
-position INTEGER NOT NULL,
-created_at DATETIME NOT NULL,
-updated_at DATETIME NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_project_columns_project ON project_columns(project_id, position);
-`)
+// migrate runs all pending database migrations using golang-migrate.
+// It also handles the transition from the legacy hand-rolled migration system:
+// if the old schema_migrations table (single "version" column, no "dirty" column)
+// is detected, its version is read, the table is dropped, and golang-migrate is
+// told to fast-forward to that version so it does not re-run already-applied migrations.
+func (s *Store) migrate() error {
+	legacyVersion, hasLegacy, err := s.detectLegacyMigrations()
 	if err != nil {
-		return fmt.Errorf("create schema: %w", err)
+		return fmt.Errorf("detect legacy migrations: %w", err)
 	}
-	// Backfill project_members for existing projects (idempotent).
-	if _, err := s.db.ExecContext(ctx, `
-INSERT OR IGNORE INTO project_members (project_id, user_id, role, joined_at)
-SELECT id, created_by, 'owner', created_at FROM projects;
-`); err != nil {
-		return fmt.Errorf("backfill project members: %w", err)
+	if hasLegacy {
+		if _, err := s.db.Exec(`DROP TABLE IF EXISTS schema_migrations`); err != nil {
+			return fmt.Errorf("drop legacy migration table: %w", err)
+		}
 	}
-	// Add searchable column to users if not present (idempotent).
-	if _, err := s.db.ExecContext(ctx,
-		`ALTER TABLE users ADD COLUMN searchable INTEGER NOT NULL DEFAULT 1`,
-	); err != nil && !strings.Contains(err.Error(), "duplicate column") {
-		return fmt.Errorf("add searchable column: %w", err)
+
+	src, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("create migration source: %w", err)
 	}
-	// Add column_id to todos if not present (idempotent).
-	if _, err := s.db.ExecContext(ctx,
-		`ALTER TABLE todos ADD COLUMN column_id TEXT REFERENCES project_columns(id) ON DELETE SET NULL`,
-	); err != nil && !strings.Contains(err.Error(), "duplicate column") {
-		return fmt.Errorf("add column_id to todos: %w", err)
+
+	driver, err := sqlite.WithInstance(s.db, &sqlite.Config{})
+	if err != nil {
+		return fmt.Errorf("create migration driver: %w", err)
 	}
-	// Add move_done to projects if not present (idempotent).
-	if _, err := s.db.ExecContext(ctx,
-		`ALTER TABLE projects ADD COLUMN move_done INTEGER NOT NULL DEFAULT 1`,
-	); err != nil && !strings.Contains(err.Error(), "duplicate column") {
-		return fmt.Errorf("add move_done to projects: %w", err)
+
+	m, err := migrate.NewWithInstance("iofs", src, "sqlite", driver)
+	if err != nil {
+		return fmt.Errorf("create migrator: %w", err)
+	}
+	// Close only the source (embedded FS — no-op). Do NOT call m.Close() because
+	// the sqlite driver's Close() would close our shared *sql.DB connection.
+	defer src.Close()
+
+	if hasLegacy {
+		if err := m.Force(legacyVersion); err != nil {
+			return fmt.Errorf("force migration version %d: %w", legacyVersion, err)
+		}
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("run migrations: %w", err)
 	}
 	return nil
+}
+
+// detectLegacyMigrations checks whether the database was previously managed by the
+// hand-rolled migration system (schema_migrations table with a single "version" column
+// and no "dirty" column). Returns (version, true, nil) when legacy state is detected.
+func (s *Store) detectLegacyMigrations() (version int, exists bool, err error) {
+	var versionColCount int
+	row := s.db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('schema_migrations') WHERE name='version'`)
+	if err := row.Scan(&versionColCount); err != nil || versionColCount == 0 {
+		return 0, false, err
+	}
+	// If the table also has a "dirty" column it is already the golang-migrate format.
+	var dirtyColCount int
+	row = s.db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('schema_migrations') WHERE name='dirty'`)
+	if err := row.Scan(&dirtyColCount); err != nil {
+		return 0, false, err
+	}
+	if dirtyColCount > 0 {
+		return 0, false, nil
+	}
+	row = s.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_migrations`)
+	if err := row.Scan(&version); err != nil {
+		return 0, false, fmt.Errorf("read legacy schema version: %w", err)
+	}
+	return version, true, nil
 }
 
 func NewID() (string, error) {

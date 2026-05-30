@@ -22,6 +22,7 @@
   import QuickAdd from './components/QuickAdd.svelte'
   import TodoList from './components/TodoList.svelte'
   import ProfilePage from './components/ProfilePage.svelte'
+  import AdminPage from './components/AdminPage.svelte'
   import ShareModal from './components/ShareModal.svelte'
   import EditProjectModal from './components/EditProjectModal.svelte'
 
@@ -285,6 +286,7 @@
         on:toggle-menu={() => (menuOpen = !menuOpen)}
         on:toggle-sidebar={() => (sidebarOpen = !sidebarOpen)}
         on:open-profile={() => { currentView.set('profile'); menuOpen = false }}
+        on:open-admin={() => { currentView.set('admin'); menuOpen = false }}
         on:open-todos={() => { currentView.set('todos'); menuOpen = false }}
         on:logout={logout}
       />
@@ -292,7 +294,9 @@
       {#if $error}<p class="error">{$error}</p>{/if}
       {#if $success}<p class="success">{$success}</p>{/if}
 
-      {#if $currentView === 'profile'}
+      {#if $currentView === 'admin' && $user.role === 'admin'}
+        <AdminPage />
+      {:else if $currentView === 'profile'}
         <ProfilePage />
       {:else}
         <div class="content-area">

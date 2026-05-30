@@ -60,6 +60,10 @@ func (h *Handler) Router(staticDir string) http.Handler {
 	api.HandleFunc("/profile", h.auth(h.updateProfile)).Methods(http.MethodPut)
 	api.HandleFunc("/profile/password", h.auth(h.updatePassword)).Methods(http.MethodPut)
 	api.HandleFunc("/users/search", h.auth(h.searchUsers)).Methods(http.MethodGet)
+	api.HandleFunc("/admin/users", h.adminAuth(h.listAdminUsers)).Methods(http.MethodGet)
+	api.HandleFunc("/admin/users/{userID}", h.adminAuth(h.updateAdminUser)).Methods(http.MethodPut)
+	api.HandleFunc("/admin/users/{userID}", h.adminAuth(h.deleteAdminUser)).Methods(http.MethodDelete)
+	api.HandleFunc("/admin/users/{userID}/password", h.adminAuth(h.updateAdminUserPassword)).Methods(http.MethodPut)
 	api.HandleFunc("/projects", h.auth(h.listProjects)).Methods(http.MethodGet)
 	api.HandleFunc("/projects", h.auth(h.createProject)).Methods(http.MethodPost)
 	api.HandleFunc("/projects/{projectID}", h.auth(h.updateProject)).Methods(http.MethodPut)
@@ -89,19 +93,29 @@ func (h *Handler) Router(staticDir string) http.Handler {
 type userKey struct{}
 
 func (h *Handler) auth(next func(http.ResponseWriter, *http.Request, model.User)) http.HandlerFunc {
-return func(w http.ResponseWriter, r *http.Request) {
-cookie, err := r.Cookie(cookieName)
-if err != nil || cookie.Value == "" {
-respondError(w, http.StatusUnauthorized, "Bitte anmelden.")
-return
+	return func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie(cookieName)
+		if err != nil || cookie.Value == "" {
+			respondError(w, http.StatusUnauthorized, "Bitte anmelden.")
+			return
+		}
+		user, err := h.store.UserBySession(r.Context(), cookie.Value)
+		if err != nil {
+			respondError(w, http.StatusUnauthorized, "Bitte erneut anmelden.")
+			return
+		}
+		next(w, r, user)
+	}
 }
-user, err := h.store.UserBySession(r.Context(), cookie.Value)
-if err != nil {
-respondError(w, http.StatusUnauthorized, "Bitte erneut anmelden.")
-return
-}
-next(w, r, user)
-}
+
+func (h *Handler) adminAuth(next func(http.ResponseWriter, *http.Request, model.User)) http.HandlerFunc {
+	return h.auth(func(w http.ResponseWriter, r *http.Request, user model.User) {
+		if user.Role != model.RoleAdmin {
+			respondError(w, http.StatusForbidden, "Admin-Zugriff erforderlich.")
+			return
+		}
+		next(w, r, user)
+	})
 }
 
 func (h *Handler) securityHeaders(next http.Handler) http.Handler {
@@ -127,18 +141,18 @@ func (h *Handler) Shutdown() {
 }
 
 func (h *Handler) health(w http.ResponseWriter, _ *http.Request) {
-respond(w, http.StatusOK, map[string]string{"status": "ok"})
+	respond(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (h *Handler) createSessionCookie(w http.ResponseWriter, r *http.Request, userID string) bool {
-token, expiresAt, err := h.store.CreateSession(r.Context(), userID, 14*24*time.Hour)
-if err != nil {
-h.logger.Error("create session", "error", err)
-respondError(w, http.StatusInternalServerError, "Session konnte nicht erstellt werden.")
-return false
-}
-http.SetCookie(w, h.sessionCookie(r, token, expiresAt))
-return true
+	token, expiresAt, err := h.store.CreateSession(r.Context(), userID, 14*24*time.Hour)
+	if err != nil {
+		h.logger.Error("create session", "error", err)
+		respondError(w, http.StatusInternalServerError, "Session konnte nicht erstellt werden.")
+		return false
+	}
+	http.SetCookie(w, h.sessionCookie(r, token, expiresAt))
+	return true
 }
 
 func (h *Handler) sessionCookie(r *http.Request, value string, expires time.Time) *http.Cookie {
@@ -154,17 +168,17 @@ func (h *Handler) sessionCookie(r *http.Request, value string, expires time.Time
 }
 
 func (h *Handler) handleStoreError(w http.ResponseWriter, err error) {
-switch {
-case errors.Is(err, store.ErrInvalidInput):
-respondError(w, http.StatusBadRequest, "Pflichtfelder fehlen oder sind ungültig.")
-case errors.Is(err, store.ErrUnauthorized):
-respondError(w, http.StatusUnauthorized, "Nicht erlaubt.")
-case errors.Is(err, store.ErrNotFound):
-respondError(w, http.StatusNotFound, "Nicht gefunden.")
-case errors.Is(err, store.ErrEmailConflict):
-respondError(w, http.StatusConflict, "Diese E-Mail wird bereits verwendet.")
-default:
-h.logger.Error("request failed", "error", err)
-respondError(w, http.StatusInternalServerError, "Interner Fehler.")
-}
+	switch {
+	case errors.Is(err, store.ErrInvalidInput):
+		respondError(w, http.StatusBadRequest, "Pflichtfelder fehlen oder sind ungültig.")
+	case errors.Is(err, store.ErrUnauthorized):
+		respondError(w, http.StatusUnauthorized, "Nicht erlaubt.")
+	case errors.Is(err, store.ErrNotFound):
+		respondError(w, http.StatusNotFound, "Nicht gefunden.")
+	case errors.Is(err, store.ErrEmailConflict):
+		respondError(w, http.StatusConflict, "Diese E-Mail wird bereits verwendet.")
+	default:
+		h.logger.Error("request failed", "error", err)
+		respondError(w, http.StatusInternalServerError, "Interner Fehler.")
+	}
 }

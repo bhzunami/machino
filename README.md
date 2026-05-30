@@ -15,6 +15,7 @@ Eine schlanke, kollaborative ToDo-App mit Echtzeit-Sync, Offline-Support und mod
 - **Echtzeit-Kollaboration** — mehrere Benutzer können gleichzeitig im selben Projekt arbeiten (WebSocket)
 - **Offline-Support** — Änderungen werden lokal gecacht (IndexedDB) und beim Reconnect synchronisiert
 - **Authentifizierung** — Registrierung, Login, Logout, Profil, Passwort-Reset per E-Mail
+- **Adminbereich** — Benutzer verwalten, löschen und Passwörter zurücksetzen
 - **Sicherheit** — Rate-Limiting auf Auth-Endpunkten, Security-Header (CSP, HSTS), CSRF-Schutz
 - **Mobile-freundlich** — responsives Design mit Slide-in-Sidebar
 
@@ -112,12 +113,17 @@ Die App ist dann unter `https://$APP_DOMAIN` erreichbar. Let's-Encrypt-Zertifika
 ### Nach dem ersten Start
 
 ```bash
+# Einen bestehenden Benutzer zum Admin machen
+docker compose exec app /app/machino --set-admin admin@example.com
+
 # Registrierung deaktivieren sobald alle Accounts angelegt sind
 # In .env setzen:
 REGISTRATION_ENABLED=false
 
 docker compose up -d
 ```
+
+Beim Start prüft das Backend die gespeicherte Datenbank-Schema-Version und führt fehlende Migrationen automatisch aus.
 
 ### Datenbank-Backup
 

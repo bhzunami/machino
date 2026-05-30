@@ -1,0 +1,10 @@
+DROP INDEX IF EXISTS idx_todos_project_position;
+DROP TABLE IF EXISTS todos;
+DROP INDEX IF EXISTS idx_project_columns_project;
+DROP TABLE IF EXISTS project_columns;
+DROP TABLE IF EXISTS project_favorites;
+DROP TABLE IF EXISTS project_members;
+DROP TABLE IF EXISTS projects;
+DROP TABLE IF EXISTS password_resets;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;

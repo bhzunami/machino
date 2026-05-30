@@ -29,17 +29,17 @@ func (s *Store) CreateUser(ctx context.Context, email, name, passwordHash string
 		}
 		return model.User{}, fmt.Errorf("insert user: %w", err)
 	}
-	return model.User{ID: id, Email: email, Name: strings.TrimSpace(name), Searchable: true, CreatedAt: now}, nil
+	return model.User{ID: id, Email: email, Name: strings.TrimSpace(name), Role: model.RoleUser, Searchable: true, CreatedAt: now}, nil
 }
 
 func (s *Store) UserByEmail(ctx context.Context, email string) (model.User, string, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, password_hash, created_at, searchable FROM users WHERE email = ?`,
+		`SELECT id, email, name, password_hash, role, created_at, searchable FROM users WHERE email = ?`,
 		NormalizeEmail(email))
 	var u model.User
 	var passwordHash string
 	var searchable int
-	if err := row.Scan(&u.ID, &u.Email, &u.Name, &passwordHash, &u.CreatedAt, &searchable); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.Name, &passwordHash, &u.Role, &u.CreatedAt, &searchable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.User{}, "", ErrUnauthorized
 		}
@@ -51,13 +51,13 @@ func (s *Store) UserByEmail(ctx context.Context, email string) (model.User, stri
 
 func (s *Store) UserBySession(ctx context.Context, token string) (model.User, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT u.id, u.email, u.name, u.created_at, u.searchable
+SELECT u.id, u.email, u.name, u.role, u.created_at, u.searchable
 FROM sessions s
 JOIN users u ON u.id = s.user_id
 WHERE s.token = ? AND s.expires_at > ?`, token, time.Now().UTC())
 	var u model.User
 	var searchable int
-	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt, &searchable); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.CreatedAt, &searchable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.User{}, ErrUnauthorized
 		}
@@ -103,6 +103,80 @@ func (s *Store) UpdateProfile(ctx context.Context, userID, email, name string, s
 		return model.User{}, fmt.Errorf("update profile: %w", err)
 	}
 	return s.userByID(ctx, userID)
+}
+
+func (s *Store) ListUsers(ctx context.Context) ([]model.User, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, email, name, role, created_at, searchable
+FROM users
+ORDER BY created_at DESC, email ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []model.User
+	for rows.Next() {
+		var u model.User
+		var searchable int
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.CreatedAt, &searchable); err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		u.Searchable = searchable == 1
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate users: %w", err)
+	}
+	if users == nil {
+		users = []model.User{}
+	}
+	return users, nil
+}
+
+func (s *Store) UpdateUser(ctx context.Context, userID, email, name string, searchable bool, role string) (model.User, error) {
+	email = NormalizeEmail(email)
+	if email == "" || !validRole(role) {
+		return model.User{}, ErrInvalidInput
+	}
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE users SET email = ?, name = ?, searchable = ?, role = ? WHERE id = ?`,
+		email, strings.TrimSpace(name), boolToInt(searchable), role, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return model.User{}, ErrEmailConflict
+		}
+		return model.User{}, fmt.Errorf("update user: %w", err)
+	}
+	if err := requireAffected(result); err != nil {
+		return model.User{}, err
+	}
+	return s.userByID(ctx, userID)
+}
+
+func (s *Store) DeleteUser(ctx context.Context, userID string) error {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	return requireAffected(result)
+}
+
+func (s *Store) SetAdminByEmail(ctx context.Context, email string) (model.User, error) {
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE users SET role = ? WHERE email = ?`,
+		model.RoleAdmin, NormalizeEmail(email))
+	if err != nil {
+		return model.User{}, fmt.Errorf("set admin: %w", err)
+	}
+	if err := requireAffected(result); err != nil {
+		return model.User{}, err
+	}
+	u, _, err := s.UserByEmail(ctx, email)
+	if err != nil {
+		return model.User{}, err
+	}
+	return u, nil
 }
 
 func (s *Store) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
@@ -170,10 +244,10 @@ func (s *Store) UsePasswordReset(ctx context.Context, token, passwordHash string
 
 func (s *Store) userByID(ctx context.Context, userID string) (model.User, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, created_at, searchable FROM users WHERE id = ?`, userID)
+		`SELECT id, email, name, role, created_at, searchable FROM users WHERE id = ?`, userID)
 	var u model.User
 	var searchable int
-	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt, &searchable); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.CreatedAt, &searchable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.User{}, ErrNotFound
 		}
@@ -181,6 +255,10 @@ func (s *Store) userByID(ctx context.Context, userID string) (model.User, error)
 	}
 	u.Searchable = searchable == 1
 	return u, nil
+}
+
+func validRole(role string) bool {
+	return role == model.RoleUser || role == model.RoleAdmin
 }
 
 // SearchUsers returns users whose name or email starts with q (case-insensitive),

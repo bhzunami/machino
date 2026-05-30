@@ -3,6 +3,7 @@ module github.com/bhzunami/machino
 go 1.25.0
 
 require (
+	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/wneessen/go-mail v0.7.3

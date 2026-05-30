@@ -24,6 +24,14 @@
     }
     dispatch('toggle-menu')
   }
+
+  $: viewBadge = $currentView === 'profile' ? 'Konto' : $currentView === 'admin' ? 'Admin' : 'Projekt'
+  $: viewTitle = $currentView === 'profile' ? 'Profil' : $currentView === 'admin' ? 'Benutzerverwaltung' : $selectedProject?.title || 'Noch kein Projekt'
+  $: viewDescription = $currentView === 'profile'
+    ? 'E-Mail und Passwort verwalten.'
+    : $currentView === 'admin'
+      ? 'Benutzer verwalten, löschen und Passwörter zurücksetzen.'
+      : $selectedProject?.description || ''
 </script>
 
 <header class="topbar card">
@@ -33,11 +41,11 @@
       <span class="bar" class:open={sidebarOpen}></span>
       <span class="bar" class:open={sidebarOpen}></span>
     </button>
-    <div class="topbar-info">
-      <div class="topbar-title">
-        <span class="topbar-badge">{$currentView === 'profile' ? 'Konto' : 'Projekt'}</span>
-        <h2>{$currentView === 'profile' ? 'Profil' : $selectedProject?.title || 'Noch kein Projekt'}</h2>
-        {#if $currentView !== 'profile' && $selectedProject && $selectedProject.memberCount > 1}
+      <div class="topbar-info">
+        <div class="topbar-title">
+        <span class="topbar-badge">{viewBadge}</span>
+        <h2>{viewTitle}</h2>
+        {#if $currentView === 'todos' && $selectedProject && $selectedProject.memberCount > 1}
           <span class="shared-chip" class:guest={!$selectedProject.isOwner} title={$selectedProject.isOwner ? `Du teilst dieses Projekt mit ${$selectedProject.memberCount - 1} ${$selectedProject.memberCount - 1 === 1 ? 'Person' : 'Personen'}` : 'Dieses Projekt wurde mit dir geteilt'}>
             <span class="shared-icon">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -54,7 +62,7 @@
             {/if}
           </span>
         {/if}
-        {#if $currentView !== 'profile' && $selectedProject?.moveDone === false}
+        {#if $currentView === 'todos' && $selectedProject?.moveDone === false}
           <span class="packlist-chip" title="Todos werden nicht nach 'Erledigt' verschoben">
             <span class="packlist-icon">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -67,15 +75,15 @@
           </span>
         {/if}
       </div>
-      {#if ($currentView !== 'profile' && $selectedProject?.description) || $currentView === 'profile'}
+      {#if viewDescription}
         <p class="topbar-desc muted">
-          {$currentView === 'profile' ? 'E-Mail und Passwort verwalten.' : $selectedProject.description}
+          {viewDescription}
         </p>
       {/if}
     </div>
   </div>
   <div class="actions">
-    <span>{$currentView === 'profile' ? $user.email : `${$openTodoCount} offen`}</span>
+    <span>{$currentView === 'profile' || $currentView === 'admin' ? $user.email : `${$openTodoCount} offen`}</span>
     <button
       class="theme-btn"
       on:click={theme.toggle}
@@ -103,6 +111,9 @@
   >
     <button on:click={() => dispatch('open-todos')}>Todos</button>
     <button on:click={() => dispatch('open-profile')}>Profil</button>
+    {#if $user.role === 'admin'}
+      <button on:click={() => dispatch('open-admin')}>Admin</button>
+    {/if}
     <button on:click={() => dispatch('logout')}>Logout</button>
   </div>
 {/if}

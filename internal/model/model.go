@@ -2,10 +2,16 @@ package model
 
 import "time"
 
+const (
+	RoleUser  = "user"
+	RoleAdmin = "admin"
+)
+
 type User struct {
 	ID         string    `json:"id"`
 	Email      string    `json:"email"`
 	Name       string    `json:"name"`
+	Role       string    `json:"role"`
 	Searchable bool      `json:"searchable"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
