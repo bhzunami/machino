@@ -52,6 +52,14 @@
     })
   }
 
+  async function deleteTodo(todo) {
+    const $selectedProjectId = get(selectedProjectId)
+    todos.update(($todos) => $todos.filter((t) => t.id !== todo.id))
+    await setCache(TODO_CACHE_KEY($selectedProjectId), get(todos))
+    editingTodo = null
+    dispatch('run-or-queue', { method: 'DELETE', path: API.todo(todo.id), body: null })
+  }
+
   function openEditTodo(todo) {
     editingTodo = todo
   }
@@ -280,7 +288,7 @@
                     <span class="meta-chip date-chip">📅 {String(todo.dueDate).slice(0, 10)}</span>
                   {/if}
                   {#if todo.priority && todo.priority !== 'normal'}
-                    <span class="meta-chip prio-{todo.priority}">{todo.priority === 'high' ? '🔴 Hoch' : '🔵 Niedrig'}</span>
+                    <span class="prio-dot prio-{todo.priority}" title={todo.priority === 'high' ? 'Hoch' : 'Niedrig'}></span>
                   {/if}
                 </div>
               </div>
@@ -296,6 +304,7 @@
   <TodoEditModal
     todo={editingTodo}
     on:save={(e) => saveTodoDetail(e.detail)}
+    on:delete={(e) => deleteTodo(e.detail)}
     on:close={() => (editingTodo = null)}
   />
 {/if}
@@ -538,5 +547,30 @@
     display: flex;
     gap: 6px;
     flex-shrink: 0;
+  }
+
+  /* Priority dot for completed todos */
+  .prio-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+    align-self: center;
+  }
+  .prio-dot.prio-high { background: #f87171; }
+  .prio-dot.prio-low  { background: #818cf8; }
+
+  /* Mobile: full-width snap columns */
+  @media (max-width: 768px) {
+    .board {
+      scroll-snap-type: x mandatory;
+      gap: 10px;
+    }
+    .board-col {
+      flex: 0 0 calc(100vw - 48px);
+      min-width: calc(100vw - 48px);
+      scroll-snap-align: start;
+    }
   }
 </style>

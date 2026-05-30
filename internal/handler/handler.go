@@ -83,6 +83,7 @@ func (h *Handler) Router(staticDir string) http.Handler {
 	api.HandleFunc("/projects/{projectID}/members", h.auth(h.addMember)).Methods(http.MethodPost)
 	api.HandleFunc("/projects/{projectID}/members/{memberUserID}", h.auth(h.removeMember)).Methods(http.MethodDelete)
 	api.HandleFunc("/todos/{todoID}", h.auth(h.updateTodo)).Methods(http.MethodPatch)
+	api.HandleFunc("/todos/{todoID}", h.auth(h.deleteTodo)).Methods(http.MethodDelete)
 	api.HandleFunc("/columns/{columnID}", h.auth(h.updateColumn)).Methods(http.MethodPatch)
 	api.HandleFunc("/columns/{columnID}", h.auth(h.deleteColumn)).Methods(http.MethodDelete)
 

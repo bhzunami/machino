@@ -47,7 +47,7 @@
           <span class="meta-chip date-chip">📅 {String(todo.dueDate).slice(0, 10)}</span>
         {/if}
         {#if todo.priority && todo.priority !== 'normal'}
-          <span class="meta-chip prio-{todo.priority}">{todo.priority === 'high' ? '↑ Hoch' : '↓ Niedrig'}</span>
+          <span class="prio-dot prio-{todo.priority}" title={todo.priority === 'high' ? 'Hoch' : 'Niedrig'}></span>
         {/if}
         <span class="edit-icon" aria-hidden="true">Bearbeiten</span>
       </div>
@@ -226,6 +226,17 @@
     border: 1px solid rgba(99,102,241,0.2);
     color: #a5b4fc;
   }
+
+  /* Priority dot — compact colored indicator */
+  .prio-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+  .prio-dot.prio-high { background: #f87171; box-shadow: 0 0 4px rgba(248,113,113,0.5); }
+  .prio-dot.prio-low  { background: #818cf8; box-shadow: 0 0 4px rgba(129,140,248,0.5); }
 
   /* Light mode chip overrides */
   :global([data-theme="light"]) .meta-chip.date-chip {

@@ -171,6 +171,30 @@ func (s *Store) UpdateTodo(ctx context.Context, userID, todoID string, completed
 	return current, nil
 }
 
+// DeleteTodo removes a single todo if the user is a member of its project.
+// Returns the project ID for WebSocket broadcast.
+func (s *Store) DeleteTodo(ctx context.Context, userID, todoID string) (string, error) {
+	if todoID == "" {
+		return "", ErrInvalidInput
+	}
+	var projectID string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT project_id FROM todos WHERE id = ?
+		 AND EXISTS (SELECT 1 FROM project_members WHERE project_id = todos.project_id AND user_id = ?)`,
+		todoID, userID,
+	).Scan(&projectID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("fetch todo project: %w", err)
+	}
+	if _, err = s.db.ExecContext(ctx, `DELETE FROM todos WHERE id = ?`, todoID); err != nil {
+		return "", fmt.Errorf("delete todo: %w", err)
+	}
+	return projectID, nil
+}
+
 func (s *Store) DeleteCompletedTodos(ctx context.Context, userID, projectID string) error {
 	if projectID == "" {
 		return ErrInvalidInput

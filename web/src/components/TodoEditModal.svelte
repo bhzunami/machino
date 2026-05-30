@@ -7,6 +7,7 @@
 
   let form = { title: '', description: '', dueDate: '', priority: 'normal' }
   let error = ''
+  let confirmDelete = false
 
   $: if (todo) {
     form = {
@@ -16,6 +17,7 @@
       priority: todo.priority || 'normal',
     }
     error = ''
+    confirmDelete = false
   }
 
   function save() {
@@ -36,6 +38,14 @@
 
   function close() {
     dispatch('close')
+  }
+
+  function deleteTodo() {
+    if (!confirmDelete) {
+      confirmDelete = true
+      return
+    }
+    dispatch('delete', todo)
   }
 </script>
 
@@ -67,7 +77,12 @@
         <div class="field-grid">
           <div class="field">
             <label for="todo-due-date">Fällig bis</label>
-            <input id="todo-due-date" type="date" bind:value={form.dueDate} />
+            <div class="date-row">
+              <input id="todo-due-date" type="date" bind:value={form.dueDate} />
+              {#if form.dueDate}
+                <button type="button" class="btn-clear-date" on:click={() => (form.dueDate = '')} aria-label="Datum löschen" title="Datum löschen">✕</button>
+              {/if}
+            </div>
           </div>
 
           <div class="field">
@@ -82,8 +97,13 @@
       </div>
 
       <div class="actions">
-        <button type="button" class="btn secondary" on:click={close}>Abbrechen</button>
-        <button type="submit" class="btn" disabled={!form.title.trim()}>Speichern</button>
+        <button type="button" class="btn danger" class:confirm={confirmDelete} on:click={deleteTodo}>
+          {confirmDelete ? 'Wirklich löschen?' : 'Löschen'}
+        </button>
+        <div class="actions-right">
+          <button type="button" class="btn secondary" on:click={close}>Abbrechen</button>
+          <button type="submit" class="btn" disabled={!form.title.trim()}>Speichern</button>
+        </div>
       </div>
     </form>
   </div>
@@ -199,12 +219,51 @@
 
   .actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     gap: 8px;
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--border);
     flex-shrink: 0;
   }
+
+  .actions-right {
+    display: flex;
+    gap: 8px;
+  }
+
+  .date-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .date-row input {
+    flex: 1;
+  }
+
+  .btn-clear-date {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    padding: 4px 7px;
+    cursor: pointer;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .btn-clear-date:hover { color: #f87171; border-color: rgba(248,113,113,0.4); }
+
+  .btn.danger {
+    background: transparent;
+    border: 1px solid rgba(248,113,113,0.35);
+    color: #f87171;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .btn.danger:hover { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.6); }
+  .btn.danger.confirm { background: rgba(248,113,113,0.15); border-color: #f87171; font-weight: 700; }
 
   @media (max-width: 560px) {
     .field-grid { grid-template-columns: 1fr; }
