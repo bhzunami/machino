@@ -100,10 +100,7 @@
         <button type="button" class="btn danger" class:confirm={confirmDelete} on:click={deleteTodo}>
           {confirmDelete ? 'Wirklich löschen?' : 'Löschen'}
         </button>
-        <div class="actions-right">
-          <button type="button" class="btn secondary" on:click={close}>Abbrechen</button>
-          <button type="submit" class="btn" disabled={!form.title.trim()}>Speichern</button>
-        </div>
+        <button type="submit" class="btn" disabled={!form.title.trim()}>Speichern</button>
       </div>
     </form>
   </div>
@@ -225,11 +222,6 @@
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--border);
     flex-shrink: 0;
-  }
-
-  .actions-right {
-    display: flex;
-    gap: 8px;
   }
 
   .date-row {
