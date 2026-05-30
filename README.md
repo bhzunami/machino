@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="web/public/logo-dark.png" alt="Machino Logo" width="220" />
+</p>
+
 # Machino — Mach I No
 
 > *Schweizerdeutsch für «mach ich noch»*
