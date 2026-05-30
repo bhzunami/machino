@@ -47,19 +47,23 @@ func (h *Handler) createTodo(w http.ResponseWriter, r *http.Request, user model.
 
 func (h *Handler) updateTodo(w http.ResponseWriter, r *http.Request, user model.User) {
 	var req struct {
-		Completed   *bool   `json:"completed"`
-		Title       *string `json:"title"`
-		Description *string `json:"description"`
-		DueDate     *string `json:"dueDate"`
-		Priority    *string `json:"priority"`
-		ColumnID    *string `json:"columnId"`
-		ClearColumn bool    `json:"clearColumn"`
+		Completed    *bool   `json:"completed"`
+		Title        *string `json:"title"`
+		Description  *string `json:"description"`
+		DueDate      *string `json:"dueDate"`
+		ClearDueDate bool    `json:"clearDueDate"`
+		Priority     *string `json:"priority"`
+		ColumnID     *string `json:"columnId"`
+		ClearColumn  bool    `json:"clearColumn"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
 	var duePtr **time.Time
-	if req.DueDate != nil {
+	if req.ClearDueDate {
+		var nilTime *time.Time
+		duePtr = &nilTime
+	} else if req.DueDate != nil {
 		due, ok := parseOptionalDate(w, req.DueDate)
 		if !ok {
 			return
